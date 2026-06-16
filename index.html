@@ -4,7 +4,11 @@
   <meta charset="UTF-8" />
   <!-- Чтобы корректно отображалось на телефоне и нельзя было случайно зумить страницу -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Выбор города</title>
+  <title>Google Street View Racer</title>
+  <!-- Красивый "гоночный" шрифт для названия игры (если не загрузится — будет обычный) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&display=swap" rel="stylesheet" />
   <style>
     /* Полностью чёрный экран на весь размер окна */
     html, body {
@@ -69,9 +73,80 @@
       text-align: center;
       transition: opacity 0.6s ease;
     }
+
+    /* ===== Заставка (вступительный экран) ===== */
+    #intro {
+      position: fixed;
+      inset: 0;                      /* на весь экран */
+      z-index: 100;                  /* поверх шара */
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0 6vw;
+      cursor: pointer;
+      transition: opacity 1.1s ease; /* плавное растворение */
+    }
+    /* Когда добавляем класс .hide — заставка плавно исчезает */
+    #intro.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Название игры */
+    #intro h1 {
+      margin: 0;
+      font-family: "Orbitron", -apple-system, system-ui, sans-serif;
+      font-weight: 800;
+      font-size: clamp(28px, 8vw, 76px);
+      line-height: 1.15;
+      letter-spacing: 0.08em;
+      color: #eaf6ff;
+      /* Голубое свечение, как у шара */
+      text-shadow: 0 0 28px rgba(80, 180, 255, 0.95),
+                   0 0 60px rgba(60, 140, 255, 0.5),
+                   0 0 6px rgba(150, 210, 255, 0.9);
+      opacity: 0;                    /* появится через анимацию */
+      transform: translateY(16px);
+      /* Сначала плавно проявляется, потом мягко "дышит" свечением */
+      animation: titleIn 1.7s ease forwards 0.3s,
+                 titleGlow 3.6s ease-in-out 2.1s infinite;
+    }
+
+    /* Подпись "нажми, чтобы начать" */
+    #intro p {
+      margin: clamp(20px, 4.5vh, 40px) 0 0;
+      font-family: -apple-system, system-ui, sans-serif;
+      font-size: clamp(13px, 3.4vw, 18px);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(170, 210, 255, 0.75);
+      opacity: 0;
+      /* Появляется позже названия, затем мягко мигает */
+      animation: subIn 1.2s ease forwards 1.4s,
+                 subPulse 2.4s ease-in-out 2.7s infinite;
+    }
+
+    @keyframes titleIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes titleGlow {
+      0%, 100% { text-shadow: 0 0 24px rgba(80, 180, 255, 0.85), 0 0 50px rgba(60, 140, 255, 0.45); }
+      50%      { text-shadow: 0 0 40px rgba(110, 200, 255, 1),    0 0 85px rgba(80, 160, 255, 0.7); }
+    }
+    @keyframes subIn   { to { opacity: 0.75; } }
+    @keyframes subPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.9; } }
   </style>
 </head>
 <body>
+  <!-- Вступительная заставка -->
+  <div id="intro">
+    <h1>GOOGLE STREET<br />VIEW RACER</h1>
+    <p>нажми, чтобы начать</p>
+  </div>
+
   <div id="hint">Крути шар пальцем или мышкой · нажми на огонёк города</div>
 
   <div id="scene">
@@ -299,6 +374,19 @@
     }
     scene.addEventListener("pointerup", endDrag);
     scene.addEventListener("pointercancel", endDrag);
+
+    // --- Заставка: растворяется по нажатию или сама через 3 секунды ---
+    const introEl = document.getElementById("intro");
+    let introClosed = false;
+    function closeIntro() {
+      if (introClosed) return;       // защита от повторного запуска
+      introClosed = true;
+      introEl.classList.add("hide"); // запускаем плавное исчезновение
+      // После окончания анимации полностью убираем слой, чтобы он не мешал кликам по шару
+      setTimeout(() => { introEl.style.display = "none"; }, 1200);
+    }
+    introEl.addEventListener("pointerdown", closeIntro);
+    setTimeout(closeIntro, 3000);
   </script>
 </body>
 </html>
