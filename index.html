@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Чтобы корректно отображалось на телефоне и нельзя было случайно зумить страницу -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Выбор города</title>
+  <style>
+    /* Полностью чёрный экран на весь размер окна */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #000;
+      overflow: hidden;            /* без полос прокрутки */
+      font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent; /* убираем серую вспышку при тапе на телефоне */
+    }
+
+    /* Контейнер по центру экрана, в нём лежат оба холста (шар и стекло поверх) */
+    #scene {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      touch-action: none;          /* чтобы перетаскивание крутило шар, а не скроллило страницу */
+      cursor: grab;
+    }
+    #scene:active { cursor: grabbing; }
+
+    /* Оба холста занимают одну и ту же квадратную область, лежат друг на друге */
+    #globe, #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #overlay { pointer-events: none; }  /* клики обрабатываем на контейнере, стекло их не перехватывает */
+
+    /* Надпись с названием города внизу экрана */
+    #label {
+      position: absolute;
+      left: 50%;
+      bottom: 8%;
+      transform: translateX(-50%);
+      color: #eaf6ff;
+      font-size: clamp(22px, 6vw, 40px);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-shadow: 0 0 18px rgba(80, 180, 255, 0.9), 0 0 4px rgba(120, 200, 255, 0.8);
+      opacity: 0;                  /* по умолчанию спрятана */
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #label.show { opacity: 1; }
+
+    /* Маленькая подсказка сверху */
+    #hint {
+      position: absolute;
+      top: 5%;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(170, 210, 255, 0.55);
+      font-size: clamp(12px, 3.5vw, 16px);
+      pointer-events: none;
+      text-align: center;
+      transition: opacity 0.6s ease;
+    }
+  </style>
+</head>
+<body>
+  <div id="hint">Крути шар пальцем или мышкой · нажми на огонёк города</div>
+
+  <div id="scene">
+    <canvas id="globe"></canvas>
+    <canvas id="overlay"></canvas>
+  </div>
+
+  <div id="label"></div>
+
+  <script type="module">
+    // Подключаем библиотеку cobe прямо из интернета (CDN), без установки.
+    import createGlobe from "https://esm.sh/cobe@0.6.3";
+
+    // --- Список городов: широта (lat) и долгота (lon) ---
+    const CITIES = [
+      { name: "Лондон",   lat: 51.5074, lon: -0.1278  },
+      { name: "Нью-Йорк", lat: 40.7128, lon: -74.0060 },
+      { name: "Токио",    lat: 35.6762, lon: 139.6503 },
+      { name: "Сидней",   lat: -33.8688, lon: 151.2093 },
+      { name: "Прага",    lat: 50.0755, lon: 14.4378  },
+    ];
+
+    // Достаём элементы со страницы
+    const scene   = document.getElementById("scene");
+    const globeC  = document.getElementById("globe");
+    const overlay = document.getElementById("overlay");
+    const labelEl = document.getElementById("label");
+    const hintEl  = document.getElementById("hint");
+    const octx    = overlay.getContext("2d");
+
+    // Размер квадратной сцены = чуть меньше короткой стороны окна
+    let size = 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // ограничим, чтобы не тормозило
+
+    function resize() {
+      size = Math.min(window.innerWidth, window.innerHeight) * 0.92;
+      scene.style.width = size + "px";
+      scene.style.height = size + "px";
+      // Холст шара (cobe рисует в "настоящих" пикселях с учётом dpr)
+      globeC.width = size * dpr;
+      globeC.height = size * dpr;
+      // Прозрачный холст сверху
+      overlay.width = size * dpr;
+      overlay.height = size * dpr;
+      octx.setTransform(dpr, 0, 0, dpr, 0, 0); // дальше рисуем в обычных пикселях
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    // --- Состояние вращения шара ---
+    // phi  — поворот вокруг вертикальной оси (влево/вправо)
+    // theta — наклон (вверх/вниз)
+    let phi = 0;
+    let theta = 0.2;
+    let phiVel = 0;        // скорость вращения по инерции после "броска" пальцем
+    const AUTO_SPIN = 0.0016; // лёгкое автоматическое вращение, когда шар не трогают
+    let dragging = false;
+    let interacted = false; // трогал ли пользователь шар (чтобы спрятать подсказку)
+    let t = 0;             // общее время для пульсации
+
+    // --- ВРАЩЕНИЕ: проекция города из 3D в точку на экране ---
+    // Формулы взяты из исходника cobe, чтобы огоньки точно совпадали с материками.
+    function project(lat, lon) {
+      const la = lat * Math.PI / 180;
+      const lo = lon * Math.PI / 180;
+      // Положение города на неподвижном шаре (единичный вектор)
+      const px = Math.cos(la) * Math.cos(lo);
+      const py = Math.sin(la);
+      const pz = -Math.cos(la) * Math.sin(lo);
+      // Поворачиваем тем же способом, что и cobe (матрица L(theta, phi))
+      const c = Math.cos(theta), e = Math.sin(theta);
+      const d = Math.cos(phi),   f = Math.sin(phi);
+      const fx = d * px + f * pz;
+      const fy = f * e * px + c * py - d * e * pz;
+      const fz = -f * c * px + e * py + d * c * pz;
+      // fz > 0 — город на видимой (передней) стороне шара
+      // Холст квадратный, поэтому соотношение сторон = 1
+      const sx = (fx * 0.8 + 1) / 2 * size;
+      const sy = (1 - (fy * 0.8 + 1) / 2) * size;
+      return { x: sx, y: sy, visible: fz > 0, depth: fz };
+    }
+
+    // --- Создаём шар через cobe ---
+    let globe = createGlobe(globeC, {
+      devicePixelRatio: dpr,
+      width: size * dpr,
+      height: size * dpr,
+      phi: 0,
+      theta: 0.2,
+      dark: 1,
+      diffuse: 1.2,
+      mapSamples: 16000,
+      mapBrightness: 6,
+      baseColor: [0.12, 0.18, 0.32],     // тёмно-синяя суша
+      markerColor: [0.35, 0.78, 1],      // голубые огоньки городов
+      glowColor: [0.25, 0.45, 0.85],     // голубоватое свечение вокруг шара
+      markers: CITIES.map(ci => ({ location: [ci.lat, ci.lon], size: 0.05 })),
+      // onRender вызывается cobe каждый кадр — здесь обновляем поворот и пульсацию
+      onRender: (state) => {
+        state.phi = phi;
+        state.theta = theta;
+        // Пульсация: размер каждого огонька плавно "дышит" (синус по времени)
+        state.markers = CITIES.map((ci, i) => {
+          const pulse = 0.04 + 0.03 * (0.5 + 0.5 * Math.sin(t * 3 + i * 1.3));
+          return { location: [ci.lat, ci.lon], size: pulse };
+        });
+        state.width = size * dpr;
+        state.height = size * dpr;
+      },
+    });
+
+    // --- Наш собственный цикл: время, инерция и рисование пульсирующих кружков ---
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      t += dt;
+
+      // Если шар не трогают — он сам медленно крутится + остаточная инерция
+      if (!dragging) {
+        phi += AUTO_SPIN + phiVel;
+        phiVel *= 0.94;            // инерция плавно затухает
+      }
+
+      drawOverlay();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // Рисуем поверх шара пульсирующие кольца и точки городов
+    function drawOverlay() {
+      octx.clearRect(0, 0, size, size);
+      for (let i = 0; i < CITIES.length; i++) {
+        const p = project(CITIES[i].lat, CITIES[i].lon);
+        if (!p.visible) continue;  // прячем огоньки на обратной стороне
+
+        const phase = 0.5 + 0.5 * Math.sin(t * 3 + i * 1.3); // 0..1, синхронно с шаром
+        const isSel = (i === selectedIndex);
+
+        // Расходящееся кольцо (эффект "мигания")
+        const ringR = 7 + phase * 12;
+        octx.beginPath();
+        octx.arc(p.x, p.y, ringR, 0, Math.PI * 2);
+        octx.strokeStyle = `rgba(120, 205, 255, ${0.55 * (1 - phase)})`;
+        octx.lineWidth = 2;
+        octx.stroke();
+
+        // Яркая точка-огонёк по центру
+        const dotR = 3 + phase * 1.5;
+        octx.beginPath();
+        octx.arc(p.x, p.y, dotR, 0, Math.PI * 2);
+        octx.fillStyle = isSel ? "#ffffff" : "rgba(150, 220, 255, 0.95)";
+        octx.shadowColor = "rgba(120, 200, 255, 0.95)";
+        octx.shadowBlur = isSel ? 22 : 14;
+        octx.fill();
+        octx.shadowBlur = 0;
+
+        // У выбранного города — дополнительное постоянное кольцо
+        if (isSel) {
+          octx.beginPath();
+          octx.arc(p.x, p.y, 16, 0, Math.PI * 2);
+          octx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+          octx.lineWidth = 2;
+          octx.stroke();
+        }
+      }
+    }
+
+    // --- Какой город сейчас выбран ---
+    let selectedIndex = -1;
+    function selectCity(i) {
+      selectedIndex = i;
+      labelEl.textContent = CITIES[i].name;
+      labelEl.classList.add("show");
+    }
+
+    // --- Управление: перетаскивание для вращения + клик по городу ---
+    let startX = 0, startY = 0, lastX = 0, lastY = 0;
+    let moved = 0;        // сколько пальцем/мышью проехали (чтобы отличить клик от вращения)
+    let pointerId = null;
+
+    scene.addEventListener("pointerdown", (ev) => {
+      dragging = true;
+      pointerId = ev.pointerId;
+      scene.setPointerCapture(pointerId);
+      startX = lastX = ev.clientX;
+      startY = lastY = ev.clientY;
+      moved = 0;
+      phiVel = 0;
+      if (!interacted) { interacted = true; hintEl.style.opacity = 0; }
+    });
+
+    scene.addEventListener("pointermove", (ev) => {
+      if (!dragging) return;
+      const dx = ev.clientX - lastX;
+      const dy = ev.clientY - lastY;
+      lastX = ev.clientX;
+      lastY = ev.clientY;
+      moved += Math.abs(dx) + Math.abs(dy);
+
+      phi += dx * 0.006;                 // тянем вбок — крутим вокруг оси
+      theta -= dy * 0.006;               // тянем вверх/вниз — наклоняем
+      theta = Math.max(-0.9, Math.min(0.9, theta)); // не даём перевернуться
+      phiVel = dx * 0.006 * 0.25;        // запоминаем скорость для инерции
+    });
+
+    function endDrag(ev) {
+      if (!dragging) return;
+      dragging = false;
+      if (pointerId !== null) { try { scene.releasePointerCapture(pointerId); } catch (e) {} }
+
+      // Если почти не двигались — это клик: проверяем, попали ли в город
+      if (moved < 8) {
+        const rect = scene.getBoundingClientRect();
+        const mx = ev.clientX - rect.left;
+        const my = ev.clientY - rect.top;
+        let best = -1, bestDist = 26; // радиус попадания в пикселях
+        for (let i = 0; i < CITIES.length; i++) {
+          const p = project(CITIES[i].lat, CITIES[i].lon);
+          if (!p.visible) continue;
+          const dist = Math.hypot(p.x - mx, p.y - my);
+          if (dist < bestDist) { bestDist = dist; best = i; }
+        }
+        if (best !== -1) selectCity(best);
+      }
+    }
+    scene.addEventListener("pointerup", endDrag);
+    scene.addEventListener("pointercancel", endDrag);
+  </script>
+</body>
+</html>
