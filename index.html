@@ -399,14 +399,60 @@
       pointer-events: none;
       text-shadow: 0 1px 2px rgba(0,0,0,0.8);
     }
+
+    /* Строка с ошибкой (появляется, только если что-то сломалось) */
+    #errLine {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 300;
+      background: rgba(120, 20, 30, 0.92);
+      color: #ffd9d9;
+      font-size: 12px;
+      padding: 8px 12px calc(8px + env(safe-area-inset-top)) 12px;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body>
+  <div id="errLine"></div>
+
   <!-- Вступительная заставка -->
   <div id="intro">
     <h1>GOOGLE STREET<br />VIEW RACER</h1>
     <p>нажми, чтобы начать</p>
   </div>
+
+  <script>
+    // Этот маленький скрипт нарочно НЕ модуль: он сработает, даже если
+    // основной код игры не смог загрузиться (плохая сеть, старый браузер).
+    (function () {
+      var introEl = document.getElementById("intro");
+      var closed = false;
+      window.__closeIntro = function () {
+        if (closed) return;
+        closed = true;
+        introEl.classList.add("hide");
+        setTimeout(function () { introEl.style.display = "none"; }, 1200);
+      };
+      introEl.addEventListener("pointerdown", window.__closeIntro);
+      setTimeout(window.__closeIntro, 3000);
+
+      // Любая ошибка — показываем её текстом сверху, чтобы по скриншоту
+      // сразу было понятно, что именно сломалось
+      function showErr(msg) {
+        var el = document.getElementById("errLine");
+        el.style.display = "block";
+        el.textContent = "⚠️ " + msg;
+      }
+      window.addEventListener("error", function (e) {
+        showErr(e.message || ("не загрузился файл: " + ((e.target && (e.target.src || e.target.href)) || "?")));
+      }, true);
+      window.addEventListener("unhandledrejection", function (e) {
+        showErr(String((e.reason && (e.reason.message || e.reason)) || "ошибка загрузки"));
+      });
+    })();
+  </script>
 
   <div id="hint">Крути шар или выбери город кнопкой внизу</div>
 
@@ -467,9 +513,6 @@
   </div>
 
   <script type="module">
-    // Подключаем библиотеку cobe прямо из интернета (CDN), без установки.
-    import createGlobe from "https://esm.sh/cobe@0.6.3";
-
     // --- Список городов ---
     // lat/lon — для огонька на шаре; drive — точка старта в настоящем городе
     // (площадь или широкая улица); theme — палитра нарисованного города.
@@ -571,34 +614,46 @@
     }
 
     // --- Создаём шар через cobe ---
+    // Библиотеку грузим "мягко": если CDN недоступен или нет WebGL,
+    // шар просто не покажется, а города можно выбрать кнопками внизу.
     let globeAlive = true; // выключаем отрисовку колец, когда уходим в игру
-    let globe = createGlobe(globeC, {
-      devicePixelRatio: dpr,
-      width: size * dpr,
-      height: size * dpr,
-      phi: 0,
-      theta: 0.2,
-      dark: 1,
-      diffuse: 1.2,
-      mapSamples: 16000,
-      mapBrightness: 6,
-      baseColor: [0.12, 0.18, 0.32],     // тёмно-синяя суша
-      markerColor: [0.35, 0.78, 1],      // голубые огоньки городов
-      glowColor: [0.25, 0.45, 0.85],     // голубоватое свечение вокруг шара
-      markers: CITIES.map(ci => ({ location: [ci.lat, ci.lon], size: 0.05 })),
-      // onRender вызывается cobe каждый кадр — здесь обновляем поворот и пульсацию
-      onRender: (state) => {
-        state.phi = phi;
-        state.theta = theta;
-        // Пульсация: размер каждого огонька плавно "дышит" (синус по времени)
-        state.markers = CITIES.map((ci, i) => {
-          const pulse = 0.04 + 0.03 * (0.5 + 0.5 * Math.sin(t * 3 + i * 1.3));
-          return { location: [ci.lat, ci.lon], size: pulse };
+    let globe = null;
+    (async () => {
+      try {
+        const { default: createGlobe } = await import("https://esm.sh/cobe@0.6.3");
+        globe = createGlobe(globeC, {
+          devicePixelRatio: dpr,
+          width: size * dpr,
+          height: size * dpr,
+          phi: 0,
+          theta: 0.2,
+          dark: 1,
+          diffuse: 1.2,
+          mapSamples: 16000,
+          mapBrightness: 6,
+          baseColor: [0.12, 0.18, 0.32],     // тёмно-синяя суша
+          markerColor: [0.35, 0.78, 1],      // голубые огоньки городов
+          glowColor: [0.25, 0.45, 0.85],     // голубоватое свечение вокруг шара
+          markers: CITIES.map(ci => ({ location: [ci.lat, ci.lon], size: 0.05 })),
+          // onRender вызывается cobe каждый кадр — здесь обновляем поворот и пульсацию
+          onRender: (state) => {
+            state.phi = phi;
+            state.theta = theta;
+            // Пульсация: размер каждого огонька плавно "дышит" (синус по времени)
+            state.markers = CITIES.map((ci, i) => {
+              const pulse = 0.04 + 0.03 * (0.5 + 0.5 * Math.sin(t * 3 + i * 1.3));
+              return { location: [ci.lat, ci.lon], size: pulse };
+            });
+            state.width = size * dpr;
+            state.height = size * dpr;
+          },
         });
-        state.width = size * dpr;
-        state.height = size * dpr;
-      },
-    });
+      } catch (e) {
+        hintEl.textContent = "Шар не загрузился — выбери город кнопкой внизу 👇";
+        hintEl.style.opacity = 1;
+        interacted = true;   // чтобы подсказку больше не прятали
+      }
+    })();
 
     // --- Наш собственный цикл: время, инерция и рисование пульсирующих кружков ---
     let last = performance.now();
@@ -623,7 +678,7 @@
         }
       }
 
-      drawOverlay();
+      if (globe) drawOverlay();   // кольца городов рисуем, только когда есть шар
       requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
@@ -751,19 +806,8 @@
     }
     scene.addEventListener("pointerup", endDrag);
     scene.addEventListener("pointercancel", endDrag);
-
-    // --- Заставка: растворяется по нажатию или сама через 3 секунды ---
-    const introEl = document.getElementById("intro");
-    let introClosed = false;
-    function closeIntro() {
-      if (introClosed) return;       // защита от повторного запуска
-      introClosed = true;
-      introEl.classList.add("hide"); // запускаем плавное исчезновение
-      // После окончания анимации полностью убираем слой, чтобы он не мешал кликам по шару
-      setTimeout(() => { introEl.style.display = "none"; }, 1200);
-    }
-    introEl.addEventListener("pointerdown", closeIntro);
-    setTimeout(closeIntro, 3000);
+    // (Заставка закрывается маленьким отдельным скриптом выше — он
+    // работает, даже если этот модуль не загрузился.)
 
     /* =====================================================================
        РЕЖИМ СВОБОДНОГО ВОЖДЕНИЯ
@@ -910,8 +954,8 @@
         sessionStorage.removeItem("gonki-auto");
         const idx = parseInt(auto, 10);
         if (idx >= 0 && idx < CITIES.length) {
-          introClosed = true;
-          introEl.style.display = "none";
+          window.__closeIntro();
+          document.getElementById("intro").style.display = "none";
           startGame(idx, "painted");
         }
       }
