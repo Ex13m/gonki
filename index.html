@@ -19,12 +19,14 @@
       overflow: hidden;            /* без полос прокрутки */
       font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
       -webkit-tap-highlight-color: transparent; /* убираем серую вспышку при тапе на телефоне */
+      user-select: none;           /* чтобы случайно не выделялся текст при игре */
+      -webkit-user-select: none;
     }
 
     /* Контейнер по центру экрана, в нём лежат оба холста (шар и стекло поверх) */
     #scene {
       position: absolute;
-      top: 50%;
+      top: 46%;
       left: 50%;
       transform: translate(-50%, -50%);
       touch-action: none;          /* чтобы перетаскивание крутило шар, а не скроллило страницу */
@@ -43,14 +45,14 @@
     }
     #overlay { pointer-events: none; }  /* клики обрабатываем на контейнере, стекло их не перехватывает */
 
-    /* Надпись с названием города внизу экрана */
+    /* Надпись с названием города */
     #label {
       position: absolute;
       left: 50%;
-      bottom: 8%;
+      bottom: 24%;
       transform: translateX(-50%);
       color: #eaf6ff;
-      font-size: clamp(22px, 6vw, 40px);
+      font-size: clamp(20px, 5vw, 34px);
       font-weight: 600;
       letter-spacing: 0.04em;
       text-shadow: 0 0 18px rgba(80, 180, 255, 0.9), 0 0 4px rgba(120, 200, 255, 0.8);
@@ -61,10 +63,65 @@
     }
     #label.show { opacity: 1; }
 
+    /* Большая кнопка "Поехали" — появляется после выбора города */
+    #goBtn {
+      position: absolute;
+      left: 50%;
+      bottom: 13.5%;
+      transform: translateX(-50%);
+      font-family: "Orbitron", sans-serif;
+      font-weight: 800;
+      font-size: clamp(16px, 4.5vw, 24px);
+      letter-spacing: 0.08em;
+      color: #001426;
+      background: linear-gradient(180deg, #9fdcff, #4aa8ff);
+      border: none;
+      border-radius: 999px;
+      padding: clamp(12px, 3vw, 16px) clamp(28px, 8vw, 48px);
+      cursor: pointer;
+      box-shadow: 0 0 28px rgba(80, 180, 255, 0.7), 0 0 70px rgba(60, 140, 255, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.15s ease;
+    }
+    #goBtn.show { opacity: 1; pointer-events: auto; }
+    #goBtn:active { transform: translateX(-50%) scale(0.95); }
+
+    /* Ряд кнопок с городами внизу — удобнее, чем ловить огонёк на шаре */
+    #cityBar {
+      position: absolute;
+      left: 50%;
+      bottom: 3.5%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      width: min(94vw, 620px);
+      z-index: 5;
+    }
+    #cityBar button {
+      font-family: inherit;
+      font-size: clamp(13px, 3.4vw, 16px);
+      color: #bfe0ff;
+      background: rgba(25, 50, 85, 0.35);
+      border: 1px solid rgba(110, 180, 255, 0.35);
+      border-radius: 999px;
+      padding: 9px 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    #cityBar button.sel {
+      color: #001426;
+      background: #9fdcff;
+      border-color: #9fdcff;
+      box-shadow: 0 0 18px rgba(110, 200, 255, 0.7);
+    }
+
     /* Маленькая подсказка сверху */
     #hint {
       position: absolute;
-      top: 5%;
+      top: 4%;
       left: 50%;
       transform: translateX(-50%);
       color: rgba(170, 210, 255, 0.55);
@@ -72,6 +129,7 @@
       pointer-events: none;
       text-align: center;
       transition: opacity 0.6s ease;
+      width: 92vw;
     }
 
     /* ===== Заставка (вступительный экран) ===== */
@@ -138,6 +196,124 @@
     }
     @keyframes subIn   { to { opacity: 0.75; } }
     @keyframes subPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.9; } }
+
+    /* ===== Экран вождения ===== */
+    #game {
+      position: fixed;
+      inset: 0;
+      display: none;                 /* включаем при старте игры */
+      background: #000;
+      touch-action: none;
+    }
+    #game canvas { display: block; }
+
+    /* Экран загрузки города */
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #bfe0ff;
+      font-size: clamp(16px, 4.5vw, 22px);
+      letter-spacing: 0.12em;
+      background: #000;
+      z-index: 20;
+      text-align: center;
+    }
+
+    /* Панель сверху: выход, город, число игроков */
+    #hudTop {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: max(10px, env(safe-area-inset-top)) 12px 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+    #exitBtn {
+      pointer-events: auto;
+      font-family: inherit;
+      font-size: clamp(13px, 3.4vw, 15px);
+      color: #bfe0ff;
+      background: rgba(10, 20, 40, 0.55);
+      border: 1px solid rgba(110, 180, 255, 0.4);
+      border-radius: 999px;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    #hudCity {
+      color: #eaf6ff;
+      font-weight: 600;
+      font-size: clamp(14px, 4vw, 18px);
+      text-shadow: 0 0 14px rgba(80, 180, 255, 0.9);
+    }
+    #hudOnline {
+      color: #bfe0ff;
+      font-size: clamp(12px, 3.4vw, 15px);
+      background: rgba(10, 20, 40, 0.55);
+      border: 1px solid rgba(110, 180, 255, 0.25);
+      border-radius: 999px;
+      padding: 8px 12px;
+    }
+
+    /* Спидометр внизу по центру */
+    #hudSpeed {
+      position: absolute;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: "Orbitron", sans-serif;
+      font-weight: 800;
+      font-size: clamp(24px, 7vw, 42px);
+      color: #eaf6ff;
+      text-shadow: 0 0 20px rgba(80, 180, 255, 0.9);
+      z-index: 10;
+      pointer-events: none;
+    }
+    #hudSpeed small { font-size: 0.45em; font-weight: 600; color: #9cc8f0; }
+
+    /* Сенсорные кнопки управления (видны только на телефоне) */
+    .pad {
+      position: absolute;
+      bottom: max(18px, env(safe-area-inset-bottom));
+      display: none;                 /* включаем на сенсорных экранах */
+      gap: 14px;
+      z-index: 10;
+    }
+    #padLeft  { left: 16px; }
+    #padRight { right: 16px; }
+    .padBtn {
+      width: clamp(64px, 17vw, 92px);
+      height: clamp(64px, 17vw, 92px);
+      border-radius: 50%;
+      border: 1.5px solid rgba(120, 200, 255, 0.45);
+      background: rgba(30, 60, 100, 0.28);
+      color: #cfe8ff;
+      font-size: clamp(24px, 7vw, 34px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .padBtn.on {
+      background: rgba(120, 200, 255, 0.45);
+      box-shadow: 0 0 22px rgba(110, 200, 255, 0.7);
+    }
+    /* Подсказка про клавиши на компьютере */
+    #keysHint {
+      position: absolute;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      right: 16px;
+      color: rgba(170, 210, 255, 0.5);
+      font-size: 13px;
+      z-index: 10;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -147,7 +323,7 @@
     <p>нажми, чтобы начать</p>
   </div>
 
-  <div id="hint">Крути шар пальцем или мышкой · нажми на огонёк города</div>
+  <div id="hint">Крути шар или выбери город кнопкой внизу</div>
 
   <div id="scene">
     <canvas id="globe"></canvas>
@@ -155,18 +331,56 @@
   </div>
 
   <div id="label"></div>
+  <button id="goBtn">Поехали 🏁</button>
+  <div id="cityBar"></div>
+
+  <!-- Экран свободного вождения -->
+  <div id="game">
+    <div id="loading">Строим город…<br /><br />🏙️</div>
+    <div id="hudTop">
+      <button id="exitBtn">← Города</button>
+      <div id="hudCity"></div>
+      <div id="hudOnline">⚪ соло</div>
+    </div>
+    <div id="hudSpeed">0 <small>км/ч</small></div>
+    <div class="pad" id="padLeft">
+      <div class="padBtn" data-key="left">◀</div>
+      <div class="padBtn" data-key="right">▶</div>
+    </div>
+    <div class="pad" id="padRight">
+      <div class="padBtn" data-key="down">▼</div>
+      <div class="padBtn" data-key="up">▲</div>
+    </div>
+    <div id="keysHint">W A S D или стрелки</div>
+  </div>
 
   <script type="module">
     // Подключаем библиотеку cobe прямо из интернета (CDN), без установки.
     import createGlobe from "https://esm.sh/cobe@0.6.3";
 
     // --- Список городов: широта (lat) и долгота (lon) ---
+    // У каждого города своя "тема" для 3D-города: цвета неба, тумана, домов и окон.
     const CITIES = [
-      { name: "Лондон",   lat: 51.5074, lon: -0.1278  },
-      { name: "Нью-Йорк", lat: 40.7128, lon: -74.0060 },
-      { name: "Токио",    lat: 35.6762, lon: 139.6503 },
-      { name: "Сидней",   lat: -33.8688, lon: 151.2093 },
-      { name: "Прага",    lat: 50.0755, lon: 14.4378  },
+      { name: "Лондон",   lat: 51.5074,  lon: -0.1278,
+        theme: { sky: 0x0a0f1c, fog: 0x141c2e, hMin: 8,  hMax: 26,
+                 buildings: [0x6b5147, 0x5a6270, 0x4a5568, 0x716257],
+                 windows: "#ffd9a0" } },
+      { name: "Нью-Йорк", lat: 40.7128,  lon: -74.0060,
+        theme: { sky: 0x060a14, fog: 0x0d1524, hMin: 18, hMax: 64,
+                 buildings: [0x3b4a63, 0x2e3d55, 0x50607d, 0x44536e],
+                 windows: "#bfe3ff" } },
+      { name: "Токио",    lat: 35.6762,  lon: 139.6503,
+        theme: { sky: 0x0b0616, fog: 0x190f2b, hMin: 12, hMax: 42,
+                 buildings: [0x3a3350, 0x2c2740, 0x463b5e, 0x332e4a],
+                 windows: "#ff7ad9" } },
+      { name: "Сидней",   lat: -33.8688, lon: 151.2093,
+        theme: { sky: 0x071120, fog: 0x102338, hMin: 8,  hMax: 34,
+                 buildings: [0x5d707f, 0x6e7f8c, 0x4d6272, 0x7d8b96],
+                 windows: "#a0f0ff" } },
+      { name: "Прага",    lat: 50.0755,  lon: 14.4378,
+        theme: { sky: 0x0c0a12, fog: 0x1a1420, hMin: 6,  hMax: 16,
+                 buildings: [0x8a6a4f, 0x7c5a44, 0x94795c, 0x6d5340],
+                 windows: "#ffcf80" } },
     ];
 
     // Достаём элементы со страницы
@@ -175,6 +389,8 @@
     const overlay = document.getElementById("overlay");
     const labelEl = document.getElementById("label");
     const hintEl  = document.getElementById("hint");
+    const goBtn   = document.getElementById("goBtn");
+    const cityBar = document.getElementById("cityBar");
     const octx    = overlay.getContext("2d");
 
     // Размер квадратной сцены = чуть меньше короткой стороны окна
@@ -182,7 +398,7 @@
     const dpr = Math.min(window.devicePixelRatio || 1, 2); // ограничим, чтобы не тормозило
 
     function resize() {
-      size = Math.min(window.innerWidth, window.innerHeight) * 0.92;
+      size = Math.min(window.innerWidth, window.innerHeight) * 0.86;
       scene.style.width = size + "px";
       scene.style.height = size + "px";
       // Холст шара (cobe рисует в "настоящих" пикселях с учётом dpr)
@@ -206,6 +422,8 @@
     let dragging = false;
     let interacted = false; // трогал ли пользователь шар (чтобы спрятать подсказку)
     let t = 0;             // общее время для пульсации
+    // Куда плавно довернуть шар (когда город выбран кнопкой)
+    let targetPhi = null, targetTheta = null;
 
     // --- ВРАЩЕНИЕ: проекция города из 3D в точку на экране ---
     // Формулы взяты из исходника cobe, чтобы огоньки точно совпадали с материками.
@@ -229,7 +447,18 @@
       return { x: sx, y: sy, visible: fz > 0, depth: fz };
     }
 
+    // Каким должен быть поворот шара, чтобы город оказался прямо перед нами
+    function anglesForCity(ci) {
+      const la = ci.lat * Math.PI / 180;
+      const lo = ci.lon * Math.PI / 180;
+      const px = Math.cos(la) * Math.cos(lo);
+      const pz = -Math.cos(la) * Math.sin(lo);
+      // Подбираем phi так, чтобы глубина fz была максимальной (город "смотрит" на нас)
+      return { phi: Math.atan2(-px, pz), theta: la * 0.9 };
+    }
+
     // --- Создаём шар через cobe ---
+    let globeAlive = true; // выключаем отрисовку колец, когда уходим в игру
     let globe = createGlobe(globeC, {
       devicePixelRatio: dpr,
       width: size * dpr,
@@ -261,14 +490,24 @@
     // --- Наш собственный цикл: время, инерция и рисование пульсирующих кружков ---
     let last = performance.now();
     function loop(now) {
+      if (!globeAlive) return;       // в режиме игры шар больше не нужен
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
       t += dt;
 
-      // Если шар не трогают — он сам медленно крутится + остаточная инерция
       if (!dragging) {
-        phi += AUTO_SPIN + phiVel;
-        phiVel *= 0.94;            // инерция плавно затухает
+        if (targetPhi !== null) {
+          // Плавно доворачиваем шар к выбранному городу (по кратчайшей дуге)
+          let dPhi = targetPhi - phi;
+          dPhi = Math.atan2(Math.sin(dPhi), Math.cos(dPhi));
+          phi += dPhi * Math.min(1, dt * 5);
+          theta += (targetTheta - theta) * Math.min(1, dt * 5);
+          if (Math.abs(dPhi) < 0.01) { targetPhi = null; targetTheta = null; }
+        } else {
+          // Если шар не трогают — он сам медленно крутится + остаточная инерция
+          phi += AUTO_SPIN + phiVel;
+          phiVel *= 0.94;            // инерция плавно затухает
+        }
       }
 
       drawOverlay();
@@ -317,11 +556,35 @@
 
     // --- Какой город сейчас выбран ---
     let selectedIndex = -1;
-    function selectCity(i) {
+    function selectCity(i, spin) {
       selectedIndex = i;
       labelEl.textContent = CITIES[i].name;
       labelEl.classList.add("show");
+      goBtn.textContent = "Поехали 🏁";
+      goBtn.classList.add("show");
+      // Подсвечиваем нужную кнопку внизу
+      [...cityBar.children].forEach((b, j) => b.classList.toggle("sel", j === i));
+      if (spin) {
+        const a = anglesForCity(CITIES[i]);
+        targetPhi = a.phi;
+        targetTheta = a.theta;
+        phiVel = 0;
+      }
+      if (!interacted) { interacted = true; hintEl.style.opacity = 0; }
     }
+
+    // Кнопки городов внизу — самый удобный способ выбрать город
+    CITIES.forEach((ci, i) => {
+      const b = document.createElement("button");
+      b.textContent = ci.name;
+      b.addEventListener("click", () => selectCity(i, true));
+      cityBar.appendChild(b);
+    });
+
+    // Кнопка "Поехали" запускает режим вождения
+    goBtn.addEventListener("click", () => {
+      if (selectedIndex !== -1) startGame(selectedIndex);
+    });
 
     // --- Управление: перетаскивание для вращения + клик по городу ---
     let startX = 0, startY = 0, lastX = 0, lastY = 0;
@@ -336,6 +599,7 @@
       startY = lastY = ev.clientY;
       moved = 0;
       phiVel = 0;
+      targetPhi = null; targetTheta = null; // рука важнее автоповорота
       if (!interacted) { interacted = true; hintEl.style.opacity = 0; }
     });
 
@@ -362,14 +626,14 @@
         const rect = scene.getBoundingClientRect();
         const mx = ev.clientX - rect.left;
         const my = ev.clientY - rect.top;
-        let best = -1, bestDist = 26; // радиус попадания в пикселях
+        let best = -1, bestDist = 30; // радиус попадания в пикселях
         for (let i = 0; i < CITIES.length; i++) {
           const p = project(CITIES[i].lat, CITIES[i].lon);
           if (!p.visible) continue;
           const dist = Math.hypot(p.x - mx, p.y - my);
           if (dist < bestDist) { bestDist = dist; best = i; }
         }
-        if (best !== -1) selectCity(best);
+        if (best !== -1) selectCity(best, false);
       }
     }
     scene.addEventListener("pointerup", endDrag);
@@ -387,6 +651,512 @@
     }
     introEl.addEventListener("pointerdown", closeIntro);
     setTimeout(closeIntro, 3000);
+
+    /* =====================================================================
+       РЕЖИМ СВОБОДНОГО ВОЖДЕНИЯ
+       ---------------------------------------------------------------------
+       - 3D-город строится кодом (three.js): сетка улиц, дома со светящимися
+         окнами, деревья. У каждого города своя палитра.
+       - Машинки тоже "генерируются" кодом: низкополигональные 3D-модели
+         из кубов и цилиндров (кузов, кабина, колёса, фары).
+       - Мультиплеер без сервера: библиотека trystero соединяет игроков
+         напрямую (P2P через WebRTC). Комната = выбранный город, то есть
+         все, кто выбрал Токио, видят друг друга в Токио.
+       ===================================================================== */
+
+    const gameEl    = document.getElementById("game");
+    const loadingEl = document.getElementById("loading");
+    const hudCity   = document.getElementById("hudCity");
+    const hudOnline = document.getElementById("hudOnline");
+    const hudSpeed  = document.getElementById("hudSpeed");
+    const exitBtn   = document.getElementById("exitBtn");
+
+    // Размеры города: улицы идут сеткой.
+    // CELL — шаг сетки, ROAD — ширина улицы, BLOCK — квартал с домами.
+    const CELL = 52, ROAD = 16, BLOCK = CELL - ROAD, NB = 4; // кварталы от -NB до NB
+    const HALF = (NB + 0.5) * CELL;   // край карты
+
+    // Цвета машинок — каждому игроку своя случайная
+    const CAR_COLORS = [0xff4757, 0x2ed573, 0x1e90ff, 0xffa502, 0xe84393, 0x00d2d3, 0xf5f6fa, 0xa55eea];
+
+    // Имя и цвет запоминаем в браузере, чтобы были те же при следующем заходе
+    let myName = localStorage.getItem("gonki-name");
+    if (!myName) {
+      myName = "Гонщик-" + Math.floor(100 + Math.random() * 900);
+      localStorage.setItem("gonki-name", myName);
+    }
+    let myColor = parseInt(localStorage.getItem("gonki-color") || "-1", 10);
+    if (myColor < 0 || myColor >= CAR_COLORS.length) {
+      myColor = Math.floor(Math.random() * CAR_COLORS.length);
+      localStorage.setItem("gonki-color", String(myColor));
+    }
+
+    // Кнопка выхода: проще всего перезагрузить страницу — снова попадём на глобус
+    exitBtn.addEventListener("click", () => location.reload());
+
+    // --- Нажатые кнопки управления (клавиатура + сенсорные кнопки) ---
+    const input = { up: false, down: false, left: false, right: false };
+    const KEYMAP = {
+      ArrowUp: "up", KeyW: "up",
+      ArrowDown: "down", KeyS: "down",
+      ArrowLeft: "left", KeyA: "left",
+      ArrowRight: "right", KeyD: "right",
+    };
+    window.addEventListener("keydown", (e) => {
+      const k = KEYMAP[e.code];
+      if (k) { input[k] = true; e.preventDefault(); }
+    });
+    window.addEventListener("keyup", (e) => {
+      const k = KEYMAP[e.code];
+      if (k) input[k] = false;
+    });
+
+    // Сенсорные кнопки: палец нажал — едем, отпустил — перестали
+    const IS_TOUCH = window.matchMedia("(pointer: coarse)").matches;
+    document.querySelectorAll(".padBtn").forEach((btn) => {
+      const key = btn.dataset.key;
+      const on  = (e) => { e.preventDefault(); input[key] = true;  btn.classList.add("on"); };
+      const off = (e) => { e.preventDefault(); input[key] = false; btn.classList.remove("on"); };
+      btn.addEventListener("pointerdown", on);
+      btn.addEventListener("pointerup", off);
+      btn.addEventListener("pointercancel", off);
+      btn.addEventListener("pointerleave", off);
+    });
+
+    let gameStarted = false;
+    async function startGame(cityIndex) {
+      if (gameStarted) return;
+      gameStarted = true;
+      const city = CITIES[cityIndex];
+
+      // Прячем экран выбора города, показываем экран игры
+      globeAlive = false;
+      try { globe.destroy && globe.destroy(); } catch (e) {}
+      for (const el of [scene, labelEl, hintEl, goBtn, cityBar]) el.style.display = "none";
+      gameEl.style.display = "block";
+      hudCity.textContent = city.name;
+      if (IS_TOUCH) {
+        document.getElementById("padLeft").style.display = "flex";
+        document.getElementById("padRight").style.display = "flex";
+        document.getElementById("keysHint").style.display = "none";
+      }
+
+      // three.js загружаем только сейчас — на экране глобуса он не нужен
+      let THREE;
+      try {
+        THREE = await import("https://esm.sh/three@0.160.0");
+      } catch (e) {
+        loadingEl.innerHTML = "Не удалось загрузить 3D-движок.<br />Проверь интернет и обнови страницу.";
+        return;
+      }
+
+      runGame(THREE, city, cityIndex);
+    }
+
+    function runGame(THREE, city, cityIndex) {
+      const theme = city.theme;
+
+      // --- Сцена, камера, отрисовка ---
+      const scene3 = new THREE.Scene();
+      scene3.background = new THREE.Color(theme.sky);
+      scene3.fog = new THREE.Fog(theme.fog, 60, 330); // дымка вдалеке — уютно и быстрее рисовать
+
+      const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 900);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(innerWidth, innerHeight);
+      gameEl.appendChild(renderer.domElement);
+      window.addEventListener("resize", () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      });
+
+      // Свет: ночное небо + "луна"
+      scene3.add(new THREE.HemisphereLight(0x8899cc, 0x222833, 0.9));
+      const moon = new THREE.DirectionalLight(0xaabbee, 0.6);
+      moon.position.set(80, 140, 60);
+      scene3.add(moon);
+
+      // Звёзды: просто облако точек высоко над городом
+      {
+        const starPos = [];
+        for (let i = 0; i < 500; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const r = 300 + Math.random() * 300;
+          const y = 80 + Math.random() * 350;
+          starPos.push(Math.cos(a) * r, y, Math.sin(a) * r);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(starPos, 3));
+        scene3.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xbfd4ff, size: 1.6, sizeAttenuation: false })));
+      }
+
+      // --- Земля: рисуем текстуру одного "квартала с дорогами" и размножаем её ---
+      {
+        const c = document.createElement("canvas");
+        c.width = c.height = 256;
+        const x = c.getContext("2d");
+        x.fillStyle = "#22262d"; x.fillRect(0, 0, 256, 256);          // асфальт
+        const bp = (BLOCK / CELL) * 256;                               // размер квартала в пикселях
+        const b0 = (256 - bp) / 2;
+        x.fillStyle = "#343a43"; x.fillRect(b0, b0, bp, bp);           // тротуар квартала
+        x.strokeStyle = "rgba(255,255,255,0.12)"; x.lineWidth = 3;
+        x.strokeRect(b0, b0, bp, bp);                                  // бордюр
+        x.strokeStyle = "rgba(255, 230, 120, 0.4)"; x.lineWidth = 3;   // разметка по центру улиц
+        x.setLineDash([14, 12]);
+        x.beginPath(); x.moveTo(0, 0.5); x.lineTo(256, 0.5); x.stroke();     // горизонтальная улица
+        x.beginPath(); x.moveTo(0.5, 0); x.lineTo(0.5, 256); x.stroke();     // вертикальная улица
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(NB * 2 + 1, NB * 2 + 1);
+        tex.anisotropy = 4;
+        const ground = new THREE.Mesh(
+          new THREE.PlaneGeometry(HALF * 2, HALF * 2),
+          new THREE.MeshLambertMaterial({ map: tex })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        scene3.add(ground);
+      }
+
+      // Текстура окон: тёмный фасад, часть окошек горит цветом города
+      function windowTexture(cols, rows) {
+        const c = document.createElement("canvas");
+        c.width = cols * 10; c.height = rows * 10;
+        const x = c.getContext("2d");
+        x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height);
+        for (let i = 0; i < cols; i++) {
+          for (let j = 0; j < rows; j++) {
+            if (Math.random() < 0.34) {          // окно горит
+              x.globalAlpha = 0.35 + Math.random() * 0.65;
+              x.fillStyle = theme.windows;
+              x.fillRect(i * 10 + 2, j * 10 + 2, 6, 6);
+            }
+          }
+        }
+        x.globalAlpha = 1;
+        const tex = new THREE.CanvasTexture(c);
+        tex.magFilter = THREE.NearestFilter;
+        return tex;
+      }
+      // Несколько вариантов текстур: для низких и высоких домов
+      const winLow  = [windowTexture(5, 8),  windowTexture(5, 8),  windowTexture(6, 10)];
+      const winHigh = [windowTexture(6, 22), windowTexture(6, 26), windowTexture(7, 30)];
+
+      // --- Дома: у каждого квартала 2×2 участка, на участке дом или скверик ---
+      const roofMat = new THREE.MeshLambertMaterial({ color: 0x14171c });
+      const trunkMat = new THREE.MeshLambertMaterial({ color: 0x4a3626 });
+      const leafMat  = new THREE.MeshLambertMaterial({ color: 0x1f4d2e });
+      const parkMat  = new THREE.MeshLambertMaterial({ color: 0x22402a });
+      for (let bi = -NB; bi <= NB; bi++) {
+        for (let bj = -NB; bj <= NB; bj++) {
+          const cx = bi * CELL, cz = bj * CELL;
+          // Основание квартала — тротуарная "плита"
+          const base = new THREE.Mesh(
+            new THREE.BoxGeometry(BLOCK, 0.5, BLOCK),
+            new THREE.MeshLambertMaterial({ color: 0x3a414b })
+          );
+          base.position.set(cx, 0.25, cz);
+          scene3.add(base);
+
+          for (const lx of [-1, 1]) {
+            for (const lz of [-1, 1]) {
+              const px = cx + lx * BLOCK / 4;
+              const pz = cz + lz * BLOCK / 4;
+              if (Math.random() < 0.14) {
+                // Скверик: зелёная лужайка и пара деревьев
+                const lawn = new THREE.Mesh(new THREE.BoxGeometry(BLOCK / 2 - 3, 0.3, BLOCK / 2 - 3), parkMat);
+                lawn.position.set(px, 0.55, pz);
+                scene3.add(lawn);
+                for (let k = 0; k < 2; k++) {
+                  const tx = px + (Math.random() - 0.5) * 8;
+                  const tz = pz + (Math.random() - 0.5) * 8;
+                  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 1.6, 6), trunkMat);
+                  trunk.position.set(tx, 1.3, tz);
+                  const crown = new THREE.Mesh(new THREE.ConeGeometry(1.6, 3.6, 7), leafMat);
+                  crown.position.set(tx, 3.8, tz);
+                  scene3.add(trunk, crown);
+                }
+              } else {
+                // Дом: размеры и высота зависят от города
+                const w = 9 + Math.random() * 5;
+                const d = 9 + Math.random() * 5;
+                const h = theme.hMin + Math.random() * (theme.hMax - theme.hMin);
+                const colr = theme.buildings[Math.floor(Math.random() * theme.buildings.length)];
+                const winArr = h > 24 ? winHigh : winLow;
+                const sideMat = new THREE.MeshLambertMaterial({
+                  color: colr,
+                  emissive: 0xffffff,
+                  emissiveIntensity: 0.9,
+                  emissiveMap: winArr[Math.floor(Math.random() * winArr.length)],
+                });
+                // У куба 6 граней: 4 стены с окнами + тёмная крыша и низ
+                const bld = new THREE.Mesh(
+                  new THREE.BoxGeometry(w, h, d),
+                  [sideMat, sideMat, roofMat, roofMat, sideMat, sideMat]
+                );
+                bld.position.set(px, h / 2 + 0.5, pz);
+                scene3.add(bld);
+              }
+            }
+          }
+        }
+      }
+
+      // --- Генератор 3D-машинки: кузов + кабина + колёса + фары ---
+      // steer — группа передних колёс (поворачиваются), wheels — все колёса (крутятся)
+      function buildCar(colorHex) {
+        const g = new THREE.Group();
+        const bodyMat  = new THREE.MeshLambertMaterial({ color: colorHex });
+        const glassMat = new THREE.MeshLambertMaterial({ color: 0x0f1822 });
+        const wheelMat = new THREE.MeshLambertMaterial({ color: 0x14161a });
+
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.55, 4.2), bodyMat);
+        body.position.y = 0.62;
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.52, 2.0), glassMat);
+        cabin.position.set(0, 1.12, -0.25);
+        const spoiler = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 0.34), bodyMat);
+        spoiler.position.set(0, 1.02, -1.95);
+        g.add(body, cabin, spoiler);
+
+        // Фары спереди (белые) и габариты сзади (красные) — светятся сами
+        for (const sx of [-0.55, 0.55]) {
+          const head = new THREE.Mesh(
+            new THREE.BoxGeometry(0.3, 0.14, 0.08),
+            new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xffffcc, emissiveIntensity: 1 })
+          );
+          head.position.set(sx, 0.66, 2.11);
+          const tail = new THREE.Mesh(
+            new THREE.BoxGeometry(0.3, 0.14, 0.08),
+            new THREE.MeshLambertMaterial({ color: 0xff2222, emissive: 0xff3333, emissiveIntensity: 0.9 })
+          );
+          tail.position.set(sx, 0.66, -2.11);
+          g.add(head, tail);
+        }
+
+        // Колёса: цилиндры; ось "вбок" запекаем прямо в геометрию,
+        // тогда вращение по X = колесо катится, и это легко анимировать
+        const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.36, 12);
+        wheelGeo.rotateZ(Math.PI / 2);
+        const wheels = [];
+        const steer = new THREE.Group();   // передние колёса внутри — их будем поворачивать
+        g.add(steer);
+        for (const [sx, sz, front] of [[-0.88, 1.35, true], [0.88, 1.35, true], [-0.88, -1.35, false], [0.88, -1.35, false]]) {
+          const wh = new THREE.Mesh(wheelGeo, wheelMat);
+          if (front) {
+            // Группа позволяет поворачивать колесо вокруг своей точки
+            const pivot = new THREE.Group();
+            pivot.position.set(sx, 0.42, sz);
+            pivot.add(wh);
+            steer.add(pivot);
+            wheels.push(wh);
+          } else {
+            wh.position.set(sx, 0.42, sz);
+            g.add(wh);
+            wheels.push(wh);
+          }
+        }
+        g.userData = { wheels, steerPivots: steer.children };
+        return g;
+      }
+
+      // Табличка с именем над чужой машинкой
+      function nameSprite(name) {
+        const c = document.createElement("canvas");
+        c.width = 256; c.height = 64;
+        const x = c.getContext("2d");
+        x.font = "600 30px system-ui, sans-serif";
+        x.textAlign = "center"; x.textBaseline = "middle";
+        x.shadowColor = "rgba(80,180,255,0.9)"; x.shadowBlur = 12;
+        x.fillStyle = "#eaf6ff";
+        x.fillText(name.slice(0, 14), 128, 32);
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthWrite: false }));
+        sp.scale.set(3.6, 0.9, 1);
+        sp.position.y = 2.3;
+        return sp;
+      }
+
+      // --- Наша машинка ---
+      const car = buildCar(CAR_COLORS[myColor]);
+      scene3.add(car);
+      // Появляемся на случайной улице, смотрим вдоль неё
+      const roadLine = (Math.floor(Math.random() * (NB * 2)) - NB + 0.5) * CELL;
+      const pos = { x: roadLine, z: (Math.random() - 0.5) * CELL * NB };
+      let angle = Math.random() < 0.5 ? 0 : Math.PI;
+      let speed = 0;
+      let wheelSpin = 0;
+
+      // --- Физика: простая "аркадная" ---
+      const MAX_SPEED = 33;      // ~120 км/ч
+      const MAX_REVERSE = -9;
+      const ACCEL = 15;
+      const BRAKE = 26;
+      const DRAG = 0.9;          // сопротивление: машина сама замедляется
+
+      function updateCar(dt) {
+        // Газ и тормоз
+        if (input.up) speed += ACCEL * dt;
+        else if (input.down) {
+          // Если едем вперёд — тормозим, если стоим — едем назад
+          speed -= (speed > 0.5 ? BRAKE : ACCEL * 0.7) * dt;
+        }
+        speed -= speed * DRAG * dt;                       // трение
+        speed = Math.max(MAX_REVERSE, Math.min(MAX_SPEED, speed));
+        if (!input.up && !input.down && Math.abs(speed) < 0.3) speed = 0;
+
+        // Руль: чем быстрее едем, тем заметнее поворот (но с пределом)
+        const steerIn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+        const grip = Math.max(-1, Math.min(1, speed / 12));
+        angle += steerIn * 2.1 * grip * dt;
+
+        // Движение вперёд по направлению машины
+        pos.x += Math.sin(angle) * speed * dt;
+        pos.z += Math.cos(angle) * speed * dt;
+
+        // Столкновения с кварталами: выталкиваем машину обратно на улицу
+        const hw = BLOCK / 2 + 1.0;
+        const nearI = Math.round(pos.x / CELL), nearJ = Math.round(pos.z / CELL);
+        for (let bi = nearI - 1; bi <= nearI + 1; bi++) {
+          for (let bj = nearJ - 1; bj <= nearJ + 1; bj++) {
+            if (bi < -NB || bi > NB || bj < -NB || bj > NB) continue;
+            const dx = pos.x - bi * CELL, dz = pos.z - bj * CELL;
+            if (Math.abs(dx) < hw && Math.abs(dz) < hw) {
+              // Выталкиваем по той оси, где "заехали" меньше всего
+              const pushX = hw - Math.abs(dx), pushZ = hw - Math.abs(dz);
+              if (pushX < pushZ) pos.x += Math.sign(dx) * pushX;
+              else pos.z += Math.sign(dz) * pushZ;
+              speed *= 0.4;   // удар о бордюр гасит скорость
+            }
+          }
+        }
+        // Не выпускаем за край карты
+        const lim = HALF - 3;
+        if (Math.abs(pos.x) > lim) { pos.x = Math.sign(pos.x) * lim; speed *= 0.4; }
+        if (Math.abs(pos.z) > lim) { pos.z = Math.sign(pos.z) * lim; speed *= 0.4; }
+
+        // Переносим результат на 3D-модель
+        car.position.set(pos.x, 0, pos.z);
+        car.rotation.y = angle;
+        wheelSpin += speed * dt / 0.42;
+        for (const wh of car.userData.wheels) wh.rotation.x = wheelSpin;
+        for (const pv of car.userData.steerPivots) pv.rotation.y = steerIn * 0.45;
+      }
+
+      // --- Камера едет за машиной ---
+      const camTarget = new THREE.Vector3();
+      function updateCamera(dt) {
+        const back = 9.5, up = 4.6;
+        const want = new THREE.Vector3(
+          pos.x - Math.sin(angle) * back,
+          up,
+          pos.z - Math.cos(angle) * back
+        );
+        const k = 1 - Math.exp(-5 * dt);   // плавное "догоняние"
+        camera.position.lerp(want, k);
+        camTarget.set(pos.x + Math.sin(angle) * 4, 1.6, pos.z + Math.cos(angle) * 4);
+        camera.lookAt(camTarget);
+      }
+      camera.position.set(pos.x - Math.sin(angle) * 9.5, 4.6, pos.z - Math.cos(angle) * 9.5);
+
+      /* --- МУЛЬТИПЛЕЕР ---
+         trystero соединяет браузеры напрямую, сервер не нужен.
+         Каждый ~0.1 сек отправляем всем: где мы, куда смотрим, скорость,
+         цвет и имя. Получая то же от других — двигаем их машинки. */
+      const peers = new Map();   // peerId -> { car, target, name, lastSeen }
+      let sendState = null;
+
+      function updateOnlineHud() {
+        const n = peers.size + 1;
+        hudOnline.textContent = n > 1 ? `🟢 игроков: ${n}` : "🟢 ждём других игроков…";
+      }
+
+      (async () => {
+        try {
+          const { joinRoom } = await import("https://esm.sh/trystero@0.21/nostr");
+          const room = joinRoom({ appId: "ex13m-gonki-v1" }, "city-" + cityIndex);
+          const [send, onState] = room.makeAction("st");
+          sendState = send;
+
+          onState((d, peerId) => {
+            // Ожидаем массив: [x, z, угол, скорость, цвет, имя]
+            if (!Array.isArray(d) || d.length < 6) return;
+            let p = peers.get(peerId);
+            if (!p) {
+              const colorIdx = Math.min(CAR_COLORS.length - 1, Math.max(0, d[4] | 0));
+              const pcar = buildCar(CAR_COLORS[colorIdx]);
+              pcar.add(nameSprite(String(d[5])));
+              pcar.position.set(d[0], 0, d[1]);
+              scene3.add(pcar);
+              p = { car: pcar, target: { x: d[0], z: d[1], a: d[2], s: d[3] }, spin: 0 };
+              peers.set(peerId, p);
+              updateOnlineHud();
+            }
+            p.target = { x: d[0], z: d[1], a: d[2], s: d[3] };
+          });
+
+          room.onPeerJoin(() => {
+            // Новичку сразу говорим, где мы, чтобы он нас увидел без задержки
+            send([pos.x, pos.z, angle, speed, myColor, myName]);
+            updateOnlineHud();
+          });
+          room.onPeerLeave((peerId) => {
+            const p = peers.get(peerId);
+            if (p) { scene3.remove(p.car); peers.delete(peerId); }
+            updateOnlineHud();
+          });
+          updateOnlineHud();
+        } catch (e) {
+          // Не получилось подключиться — играем в одиночку, это не страшно
+          hudOnline.textContent = "⚪ соло";
+        }
+      })();
+
+      // Плавно двигаем чужие машинки к их последним известным позициям
+      function updatePeers(dt) {
+        const k = 1 - Math.exp(-10 * dt);
+        for (const p of peers.values()) {
+          const c = p.car;
+          // Если машинка очень далеко от цели (телепорт) — просто переносим
+          if (Math.hypot(c.position.x - p.target.x, c.position.z - p.target.z) > 40) {
+            c.position.set(p.target.x, 0, p.target.z);
+            c.rotation.y = p.target.a;
+          } else {
+            c.position.x += (p.target.x - c.position.x) * k;
+            c.position.z += (p.target.z - c.position.z) * k;
+            let da = p.target.a - c.rotation.y;
+            da = Math.atan2(Math.sin(da), Math.cos(da));
+            c.rotation.y += da * k;
+          }
+          p.spin += p.target.s * dt / 0.42;
+          for (const wh of c.userData.wheels) wh.rotation.x = p.spin;
+        }
+      }
+
+      // --- Главный игровой цикл ---
+      loadingEl.style.display = "none";
+      let prev = performance.now();
+      let netTimer = 0;
+      function tick(now) {
+        const dt = Math.min((now - prev) / 1000, 0.05);
+        prev = now;
+
+        updateCar(dt);
+        updatePeers(dt);
+        updateCamera(dt);
+
+        // Рассылаем своё положение ~10 раз в секунду
+        netTimer += dt;
+        if (sendState && netTimer > 0.1) {
+          netTimer = 0;
+          sendState([+pos.x.toFixed(2), +pos.z.toFixed(2), +angle.toFixed(3), +speed.toFixed(1), myColor, myName]);
+        }
+
+        hudSpeed.innerHTML = Math.round(Math.abs(speed) * 3.6) + " <small>км/ч</small>";
+        renderer.render(scene3, camera);
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
   </script>
 </body>
 </html>
