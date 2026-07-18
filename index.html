@@ -345,6 +345,10 @@
       pointer-events: none;
     }
     #hudSpeed small { font-size: 0.45em; font-weight: 600; color: #cfe4f7; }
+    /* На телефоне поднимаем спидометр над слайдерами, чтобы не наезжал */
+    body.touch #hudSpeed {
+      bottom: calc(max(18px, env(safe-area-inset-bottom)) + 84px);
+    }
 
     /* Обязательная подпись про данные Google (в режиме настоящего города) */
     #gCredit {
@@ -359,34 +363,62 @@
       text-shadow: 0 1px 2px rgba(0,0,0,0.8);
     }
 
-    /* Сенсорные кнопки управления (видны только на телефоне) */
+    /* Сенсорное управление (видно только на телефоне):
+       слева руль-слайдер, справа вертикальный слайдер газа */
     .pad {
       position: absolute;
       bottom: max(18px, env(safe-area-inset-bottom));
       display: none;                 /* включаем на сенсорных экранах */
-      gap: 14px;
       z-index: 10;
     }
-    #padLeft  { left: 16px; }
-    #padRight { right: 16px; }
-    .padBtn {
-      width: clamp(64px, 17vw, 92px);
-      height: clamp(64px, 17vw, 92px);
-      border-radius: 50%;
+    #padLeft  { left: 14px; }
+    #padRight { right: 14px; }
+    .track {
+      position: relative;
+      border-radius: 999px;
       border: 1.5px solid rgba(120, 200, 255, 0.45);
       background: rgba(30, 60, 100, 0.28);
-      color: #cfe8ff;
-      font-size: clamp(24px, 7vw, 34px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      touch-action: none;
+      touch-action: none;            /* палец двигает слайдер, а не страницу */
       user-select: none;
       -webkit-user-select: none;
     }
-    .padBtn.on {
-      background: rgba(120, 200, 255, 0.45);
-      box-shadow: 0 0 22px rgba(110, 200, 255, 0.7);
+    /* Руль: горизонтальная дорожка */
+    #steerTrack { width: clamp(160px, 44vw, 250px); height: 64px; }
+    /* Газ: вертикальная дорожка */
+    #gasTrack { width: 64px; height: clamp(160px, 30vh, 240px); }
+    /* Бегунок */
+    .thumb {
+      position: absolute;
+      left: 50%; top: 50%;
+      width: 52px; height: 52px;
+      margin: -26px 0 0 -26px;
+      border-radius: 50%;
+      background: rgba(120, 200, 255, 0.5);
+      box-shadow: 0 0 18px rgba(110, 200, 255, 0.65);
+      transition: transform 0.18s ease;   /* плавный возврат в центр */
+      pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+      color: #06263f; font-size: 19px; font-weight: 700;
+    }
+    .thumb.drag { transition: none; }     /* пока тянем — без плавности */
+    /* Подписи-стрелки на краях дорожек */
+    .trackMark {
+      position: absolute;
+      color: rgba(200, 230, 255, 0.65);
+      font-size: 18px;
+      pointer-events: none;
+    }
+    #steerTrack .trackMark.l { left: 12px;  top: 50%; transform: translateY(-50%); }
+    #steerTrack .trackMark.r { right: 12px; top: 50%; transform: translateY(-50%); }
+    #gasTrack .trackMark.t { top: 10px;    left: 50%; transform: translateX(-50%); }
+    #gasTrack .trackMark.b { bottom: 10px; left: 50%; transform: translateX(-50%); }
+    /* Отметка нейтрали на слайдере газа */
+    #gasTrack .neutral {
+      position: absolute;
+      left: 10px; right: 10px; top: 50%;
+      height: 2px;
+      background: rgba(190, 225, 255, 0.4);
+      pointer-events: none;
     }
     /* Подсказка про клавиши на компьютере */
     #keysHint {
@@ -446,7 +478,10 @@
         el.textContent = "⚠️ " + msg;
       }
       window.addEventListener("error", function (e) {
-        showErr(e.message || ("не загрузился файл: " + ((e.target && (e.target.src || e.target.href)) || "?")));
+        // Ошибки загрузки украшений (шрифтов и т.п.) не показываем —
+        // только настоящие ошибки в коде
+        if (e.target && e.target !== window && e.target.tagName) return;
+        showErr(e.message || "ошибка в скрипте");
       }, true);
       window.addEventListener("unhandledrejection", function (e) {
         showErr(String((e.reason && (e.reason.message || e.reason)) || "ошибка загрузки"));
@@ -502,12 +537,17 @@
     <div id="hudSpeed">0 <small>км/ч</small></div>
     <div id="gCredit">Данные карт: © Google</div>
     <div class="pad" id="padLeft">
-      <div class="padBtn" data-key="left">◀</div>
-      <div class="padBtn" data-key="right">▶</div>
+      <div class="track" id="steerTrack">
+        <span class="trackMark l">◀</span><span class="trackMark r">▶</span>
+        <div class="thumb" id="steerThumb">🚗</div>
+      </div>
     </div>
     <div class="pad" id="padRight">
-      <div class="padBtn" data-key="down">▼</div>
-      <div class="padBtn" data-key="up">▲</div>
+      <div class="track" id="gasTrack">
+        <span class="trackMark t">▲</span><span class="trackMark b">▼</span>
+        <div class="neutral"></div>
+        <div class="thumb" id="gasThumb">⛽</div>
+      </div>
     </div>
     <div id="keysHint">W A S D или стрелки</div>
   </div>
@@ -876,16 +916,71 @@
       if (k) input[k] = false;
     });
 
-    // Сенсорные кнопки: палец нажал — едем, отпустил — перестали
+    // Сенсорные слайдеры:
+    // руль — тянешь вбок, отпустил — сам возвращается в центр (как настоящий руль);
+    // газ — вертикальный рычаг с нейтралью посередине: вверх газ, вниз тормоз/задний,
+    //       остаётся там, где поставил (около центра — прилипает к нейтрали).
     const IS_TOUCH = window.matchMedia("(pointer: coarse)").matches;
-    document.querySelectorAll(".padBtn").forEach((btn) => {
-      const key = btn.dataset.key;
-      const on  = (e) => { e.preventDefault(); input[key] = true;  btn.classList.add("on"); };
-      const off = (e) => { e.preventDefault(); input[key] = false; btn.classList.remove("on"); };
-      btn.addEventListener("pointerdown", on);
-      btn.addEventListener("pointerup", off);
-      btn.addEventListener("pointercancel", off);
-      btn.addEventListener("pointerleave", off);
+    const axis = { steer: 0, throttle: 0 };   // значения слайдеров от -1 до 1
+
+    function makeSlider(trackId, thumbId, opts) {
+      const track = document.getElementById(trackId);
+      const thumb = document.getElementById(thumbId);
+      let activeId = null;
+
+      // Насколько далеко бегунок может уехать от центра (в пикселях)
+      function range() {
+        const r = track.getBoundingClientRect();
+        return (opts.horizontal ? r.width : r.height) / 2 - 30;
+      }
+      function setVisual(v) {
+        thumb.style.transform = opts.horizontal
+          ? `translateX(${v * range()}px)`
+          : `translateY(${-v * range()}px)`;
+      }
+      function valueFrom(ev) {
+        const r = track.getBoundingClientRect();
+        const v = opts.horizontal
+          ? (ev.clientX - (r.left + r.width / 2)) / range()
+          : ((r.top + r.height / 2) - ev.clientY) / range();
+        return Math.max(-1, Math.min(1, v));
+      }
+      track.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault();
+        activeId = ev.pointerId;
+        track.setPointerCapture(activeId);
+        thumb.classList.add("drag");
+        const v = valueFrom(ev);
+        opts.set(v); setVisual(v);
+      });
+      track.addEventListener("pointermove", (ev) => {
+        if (ev.pointerId !== activeId) return;
+        ev.preventDefault();
+        const v = valueFrom(ev);
+        opts.set(v); setVisual(v);
+      });
+      function release(ev) {
+        if (ev.pointerId !== activeId) return;
+        activeId = null;
+        thumb.classList.remove("drag");
+        if (opts.spring) {
+          opts.set(0); setVisual(0);          // руль сам встаёт в центр
+        } else {
+          let v = opts.get();
+          if (Math.abs(v) < 0.15) v = 0;      // около середины — прилипаем к нейтрали
+          opts.set(v); setVisual(v);
+        }
+      }
+      track.addEventListener("pointerup", release);
+      track.addEventListener("pointercancel", release);
+    }
+    makeSlider("steerTrack", "steerThumb", {
+      horizontal: true, spring: true,
+      set: (v) => { axis.steer = v; }, get: () => axis.steer,
+    });
+    makeSlider("gasTrack", "gasThumb", {
+      horizontal: false, spring: false,
+      set: (v) => { axis.throttle = v; }, get: () => axis.throttle,
     });
 
     // --- Старт игры: сперва спрашиваем, какой город хочется ---
@@ -905,6 +1000,7 @@
         document.getElementById("padLeft").style.display = "flex";
         document.getElementById("padRight").style.display = "flex";
         document.getElementById("keysHint").style.display = "none";
+        document.body.classList.add("touch");   // спидометр — повыше от слайдеров
       }
 
       if (forceMode) { launch(forceMode, cityIndex); return; }
@@ -1368,18 +1464,23 @@
       const DRAG = 0.9;          // сопротивление: машина сама замедляется
 
       function updateCar(dt) {
-        // Газ и тормоз
-        if (input.up) speed += ACCEL * dt;
-        else if (input.down) {
+        // Клавиатура и слайдеры дают одно "аналоговое" значение от -1 до 1
+        const kThrottle = (input.up ? 1 : 0) - (input.down ? 1 : 0);
+        const throttle = kThrottle !== 0 ? kThrottle : axis.throttle;
+        const kSteer = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+        const steerIn = kSteer !== 0 ? kSteer : -axis.steer;  // слайдер вправо = руль вправо
+
+        // Газ и тормоз (чем дальше сдвинут рычаг, тем сильнее)
+        if (throttle > 0.05) speed += ACCEL * throttle * dt;
+        else if (throttle < -0.05) {
           // Если едем вперёд — тормозим, если стоим — едем назад
-          speed -= (speed > 0.5 ? BRAKE : ACCEL * 0.7) * dt;
+          speed -= (speed > 0.5 ? BRAKE : ACCEL * 0.7) * (-throttle) * dt;
         }
         speed -= speed * DRAG * dt;                       // трение
         speed = Math.max(MAX_REVERSE, Math.min(MAX_SPEED, speed));
-        if (!input.up && !input.down && Math.abs(speed) < 0.3) speed = 0;
+        if (Math.abs(throttle) < 0.05 && Math.abs(speed) < 0.3) speed = 0;
 
         // Руль: чем быстрее едем, тем заметнее поворот (но с пределом)
-        const steerIn = (input.left ? 1 : 0) - (input.right ? 1 : 0);
         const grip = Math.max(-1, Math.min(1, speed / 12));
         angle += steerIn * 2.1 * grip * dt;
 
