@@ -207,20 +207,91 @@
     }
     #game canvas { display: block; }
 
+    /* Выбор: настоящий город Google или нарисованный */
+    #modePanel {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      padding: 4vw;
+    }
+    #modeCard {
+      width: min(92vw, 480px);
+      max-height: 88vh;
+      overflow-y: auto;
+      background: rgba(12, 22, 40, 0.92);
+      border: 1px solid rgba(110, 180, 255, 0.35);
+      border-radius: 20px;
+      padding: 22px;
+      color: #d7eaff;
+      box-shadow: 0 0 40px rgba(60, 140, 255, 0.25);
+    }
+    #modeCard h2 {
+      margin: 0 0 10px;
+      font-family: "Orbitron", sans-serif;
+      font-size: clamp(17px, 5vw, 22px);
+      color: #eaf6ff;
+      text-shadow: 0 0 16px rgba(80, 180, 255, 0.8);
+    }
+    #modeCard p { margin: 8px 0; font-size: clamp(13px, 3.6vw, 15px); line-height: 1.45; color: #b8d4f2; }
+    #modeCard a { color: #7cc4ff; }
+    #gkey {
+      width: 100%;
+      box-sizing: border-box;
+      margin: 10px 0 4px;
+      padding: 12px 14px;
+      font-size: 15px;
+      color: #eaf6ff;
+      background: rgba(0, 10, 25, 0.7);
+      border: 1px solid rgba(110, 180, 255, 0.4);
+      border-radius: 12px;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    #keyMsg { color: #ff8f8f; font-size: 13px; min-height: 17px; margin: 2px 0 6px; }
+    .modeBtn {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: clamp(14px, 4vw, 16px);
+      padding: 13px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 1px solid rgba(110, 180, 255, 0.4);
+      transition: transform 0.12s ease;
+    }
+    .modeBtn:active { transform: scale(0.98); }
+    #btnReal    { color: #001426; background: linear-gradient(180deg, #9fdcff, #4aa8ff); border: none; }
+    #btnPainted { color: #bfe0ff; background: rgba(25, 50, 85, 0.5); }
+    #modeCard details { margin-top: 10px; font-size: 13.5px; color: #a9c8e8; }
+    #modeCard summary { cursor: pointer; color: #7cc4ff; }
+    #modeCard ol { margin: 8px 0 0 2px; padding-left: 18px; }
+    #modeCard li { margin: 4px 0; }
+
     /* Экран загрузки города */
     #loading {
       position: absolute;
       inset: 0;
-      display: flex;
+      display: none;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       color: #bfe0ff;
-      font-size: clamp(16px, 4.5vw, 22px);
-      letter-spacing: 0.12em;
+      font-size: clamp(15px, 4.2vw, 20px);
+      letter-spacing: 0.08em;
       background: #000;
       z-index: 20;
       text-align: center;
+      line-height: 1.6;
+      padding: 0 6vw;
     }
+    #loading .modeBtn { width: min(80vw, 320px); }
 
     /* Панель сверху: выход, город, число игроков */
     #hudTop {
@@ -248,7 +319,7 @@
       color: #eaf6ff;
       font-weight: 600;
       font-size: clamp(14px, 4vw, 18px);
-      text-shadow: 0 0 14px rgba(80, 180, 255, 0.9);
+      text-shadow: 0 0 14px rgba(80, 180, 255, 0.9), 0 1px 3px rgba(0,0,0,0.8);
     }
     #hudOnline {
       color: #bfe0ff;
@@ -269,11 +340,24 @@
       font-weight: 800;
       font-size: clamp(24px, 7vw, 42px);
       color: #eaf6ff;
-      text-shadow: 0 0 20px rgba(80, 180, 255, 0.9);
+      text-shadow: 0 0 20px rgba(80, 180, 255, 0.9), 0 1px 3px rgba(0,0,0,0.8);
       z-index: 10;
       pointer-events: none;
     }
-    #hudSpeed small { font-size: 0.45em; font-weight: 600; color: #9cc8f0; }
+    #hudSpeed small { font-size: 0.45em; font-weight: 600; color: #cfe4f7; }
+
+    /* Обязательная подпись про данные Google (в режиме настоящего города) */
+    #gCredit {
+      position: absolute;
+      bottom: max(6px, env(safe-area-inset-bottom));
+      left: 10px;
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 11px;
+      z-index: 10;
+      display: none;
+      pointer-events: none;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    }
 
     /* Сенсорные кнопки управления (видны только на телефоне) */
     .pad {
@@ -309,10 +393,11 @@
       position: absolute;
       bottom: max(14px, env(safe-area-inset-bottom));
       right: 16px;
-      color: rgba(170, 210, 255, 0.5);
+      color: rgba(200, 225, 255, 0.6);
       font-size: 13px;
       z-index: 10;
       pointer-events: none;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
     }
   </style>
 </head>
@@ -336,13 +421,40 @@
 
   <!-- Экран свободного вождения -->
   <div id="game">
-    <div id="loading">Строим город…<br /><br />🏙️</div>
+    <!-- Выбор: настоящий 3D-город Google или нарисованный -->
+    <div id="modePanel">
+      <div id="modeCard">
+        <h2>Как поедем?</h2>
+        <p><b>Настоящий город</b> — фотореалистичные 3D-дома от Google
+          (те же, что в Google Земля). Для этого нужен бесплатный
+          API-ключ Google.</p>
+        <input id="gkey" placeholder="Вставь сюда ключ Google API" autocomplete="off" />
+        <div id="keyMsg"></div>
+        <button class="modeBtn" id="btnReal">🌍 Настоящий город (Google 3D)</button>
+        <button class="modeBtn" id="btnPainted">🎨 Нарисованный город (без ключа)</button>
+        <details>
+          <summary>Где взять ключ? (займёт минут 5)</summary>
+          <ol>
+            <li>Зайди на <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> с аккаунтом Google.</li>
+            <li>Создай проект (любое имя).</li>
+            <li>В поиске найди <b>Map Tiles API</b> и нажми «Enable» (включить). Понадобится привязать платёжный аккаунт — у Google есть бесплатный лимит, для игры его хватает.</li>
+            <li>Открой «APIs &amp; Services → Credentials» и создай <b>API key</b>.</li>
+            <li>Скопируй ключ и вставь его в поле выше. Ключ сохранится в твоём браузере.</li>
+          </ol>
+          <p>Подробная инструкция:
+            <a href="https://developers.google.com/maps/documentation/tile/get-api-key?hl=ru" target="_blank" rel="noopener">developers.google.com…</a></p>
+        </details>
+      </div>
+    </div>
+
+    <div id="loading"></div>
     <div id="hudTop">
       <button id="exitBtn">← Города</button>
       <div id="hudCity"></div>
       <div id="hudOnline">⚪ соло</div>
     </div>
     <div id="hudSpeed">0 <small>км/ч</small></div>
+    <div id="gCredit">Данные карт: © Google</div>
     <div class="pad" id="padLeft">
       <div class="padBtn" data-key="left">◀</div>
       <div class="padBtn" data-key="right">▶</div>
@@ -358,26 +470,27 @@
     // Подключаем библиотеку cobe прямо из интернета (CDN), без установки.
     import createGlobe from "https://esm.sh/cobe@0.6.3";
 
-    // --- Список городов: широта (lat) и долгота (lon) ---
-    // У каждого города своя "тема" для 3D-города: цвета неба, тумана, домов и окон.
+    // --- Список городов ---
+    // lat/lon — для огонька на шаре; drive — точка старта в настоящем городе
+    // (площадь или широкая улица); theme — палитра нарисованного города.
     const CITIES = [
-      { name: "Лондон",   lat: 51.5074,  lon: -0.1278,
+      { name: "Лондон",   lat: 51.5074,  lon: -0.1278,  drive: [51.5080, -0.1281],
         theme: { sky: 0x0a0f1c, fog: 0x141c2e, hMin: 8,  hMax: 26,
                  buildings: [0x6b5147, 0x5a6270, 0x4a5568, 0x716257],
                  windows: "#ffd9a0" } },
-      { name: "Нью-Йорк", lat: 40.7128,  lon: -74.0060,
+      { name: "Нью-Йорк", lat: 40.7128,  lon: -74.0060, drive: [40.7580, -73.9855],
         theme: { sky: 0x060a14, fog: 0x0d1524, hMin: 18, hMax: 64,
                  buildings: [0x3b4a63, 0x2e3d55, 0x50607d, 0x44536e],
                  windows: "#bfe3ff" } },
-      { name: "Токио",    lat: 35.6762,  lon: 139.6503,
+      { name: "Токио",    lat: 35.6762,  lon: 139.6503, drive: [35.6595, 139.7005],
         theme: { sky: 0x0b0616, fog: 0x190f2b, hMin: 12, hMax: 42,
                  buildings: [0x3a3350, 0x2c2740, 0x463b5e, 0x332e4a],
                  windows: "#ff7ad9" } },
-      { name: "Сидней",   lat: -33.8688, lon: 151.2093,
+      { name: "Сидней",   lat: -33.8688, lon: 151.2093, drive: [-33.8675, 151.2070],
         theme: { sky: 0x071120, fog: 0x102338, hMin: 8,  hMax: 34,
                  buildings: [0x5d707f, 0x6e7f8c, 0x4d6272, 0x7d8b96],
                  windows: "#a0f0ff" } },
-      { name: "Прага",    lat: 50.0755,  lon: 14.4378,
+      { name: "Прага",    lat: 50.0755,  lon: 14.4378,  drive: [50.0813, 14.4265],
         theme: { sky: 0x0c0a12, fog: 0x1a1420, hMin: 6,  hMax: 16,
                  buildings: [0x8a6a4f, 0x7c5a44, 0x94795c, 0x6d5340],
                  windows: "#ffcf80" } },
@@ -655,26 +768,33 @@
     /* =====================================================================
        РЕЖИМ СВОБОДНОГО ВОЖДЕНИЯ
        ---------------------------------------------------------------------
-       - 3D-город строится кодом (three.js): сетка улиц, дома со светящимися
-         окнами, деревья. У каждого города своя палитра.
-       - Машинки тоже "генерируются" кодом: низкополигональные 3D-модели
-         из кубов и цилиндров (кузов, кабина, колёса, фары).
-       - Мультиплеер без сервера: библиотека trystero соединяет игроков
-         напрямую (P2P через WebRTC). Комната = выбранный город, то есть
-         все, кто выбрал Токио, видят друг друга в Токио.
+       Два варианта города:
+       1) НАСТОЯЩИЙ — фотореалистичные 3D-тайлы Google (Photorealistic 3D
+          Tiles, как в Google Земля). Нужен API-ключ Google. Библиотека
+          3d-tiles-renderer подгружает кусочки города вокруг машины.
+       2) НАРИСОВАННЫЙ — ночной город строится кодом: сетка улиц, дома со
+          светящимися окнами. Работает без ключа.
+       Машинки в обоих случаях "генерируются" кодом: низкополигональные
+       3D-модели из кубов и цилиндров (кузов, кабина, колёса, фары).
+       Мультиплеер без сервера: trystero (P2P через WebRTC), комната = город.
        ===================================================================== */
 
     const gameEl    = document.getElementById("game");
     const loadingEl = document.getElementById("loading");
+    const modePanel = document.getElementById("modePanel");
     const hudCity   = document.getElementById("hudCity");
     const hudOnline = document.getElementById("hudOnline");
     const hudSpeed  = document.getElementById("hudSpeed");
+    const gCredit   = document.getElementById("gCredit");
     const exitBtn   = document.getElementById("exitBtn");
+    const gkeyInput = document.getElementById("gkey");
+    const keyMsg    = document.getElementById("keyMsg");
 
-    // Размеры города: улицы идут сеткой.
+    // Размеры нарисованного города: улицы идут сеткой.
     // CELL — шаг сетки, ROAD — ширина улицы, BLOCK — квартал с домами.
     const CELL = 52, ROAD = 16, BLOCK = CELL - ROAD, NB = 4; // кварталы от -NB до NB
-    const HALF = (NB + 0.5) * CELL;   // край карты
+    const HALF = (NB + 0.5) * CELL;   // край нарисованной карты
+    const REAL_LIMIT = 1500;          // в настоящем городе — не уезжаем дальше 1.5 км от старта
 
     // Цвета машинок — каждому игроку своя случайная
     const CAR_COLORS = [0xff4757, 0x2ed573, 0x1e90ff, 0xffa502, 0xe84393, 0x00d2d3, 0xf5f6fa, 0xa55eea];
@@ -703,6 +823,7 @@
       ArrowRight: "right", KeyD: "right",
     };
     window.addEventListener("keydown", (e) => {
+      if (e.target === gkeyInput) return;   // в поле ключа печатаем буквы спокойно
       const k = KEYMAP[e.code];
       if (k) { input[k] = true; e.preventDefault(); }
     });
@@ -723,8 +844,9 @@
       btn.addEventListener("pointerleave", off);
     });
 
+    // --- Старт игры: сперва спрашиваем, какой город хочется ---
     let gameStarted = false;
-    async function startGame(cityIndex) {
+    function startGame(cityIndex, forceMode) {
       if (gameStarted) return;
       gameStarted = true;
       const city = CITIES[cityIndex];
@@ -741,36 +863,66 @@
         document.getElementById("keysHint").style.display = "none";
       }
 
+      if (forceMode) { launch(forceMode, cityIndex); return; }
+
+      // Панель выбора режима; ключ (если вводили раньше) подставляем сами
+      modePanel.style.display = "flex";
+      gkeyInput.value = localStorage.getItem("gonki-gkey") || "";
+      document.getElementById("btnReal").onclick = () => {
+        const key = gkeyInput.value.trim();
+        if (!key) {
+          keyMsg.textContent = "Сначала вставь ключ — или выбери нарисованный город.";
+          gkeyInput.focus();
+          return;
+        }
+        localStorage.setItem("gonki-gkey", key);
+        modePanel.style.display = "none";
+        launch("google", cityIndex);
+      };
+      document.getElementById("btnPainted").onclick = () => {
+        modePanel.style.display = "none";
+        launch("painted", cityIndex);
+      };
+    }
+
+    async function launch(mode, cityIndex) {
+      loadingEl.style.display = "flex";
+      loadingEl.innerHTML = mode === "google"
+        ? "Загружаем настоящий город…<br /><small>первые секунды дома подгружаются кусочками</small>"
+        : "Строим город…<br /><br />🏙️";
+
       // three.js загружаем только сейчас — на экране глобуса он не нужен
       let THREE;
       try {
-        THREE = await import("https://esm.sh/three@0.160.0");
+        THREE = await import("https://esm.sh/three@0.170.0");
       } catch (e) {
         loadingEl.innerHTML = "Не удалось загрузить 3D-движок.<br />Проверь интернет и обнови страницу.";
         return;
       }
-
-      runGame(THREE, city, cityIndex);
+      runGame(THREE, cityIndex, mode);
     }
 
-    function runGame(THREE, city, cityIndex) {
-      const theme = city.theme;
+    // Если в прошлый раз Google-город не загрузился и игрок выбрал
+    // "нарисованный" — после перезагрузки сразу запускаем его
+    {
+      const auto = sessionStorage.getItem("gonki-auto");
+      if (auto !== null) {
+        sessionStorage.removeItem("gonki-auto");
+        const idx = parseInt(auto, 10);
+        if (idx >= 0 && idx < CITIES.length) {
+          introClosed = true;
+          introEl.style.display = "none";
+          startGame(idx, "painted");
+        }
+      }
+    }
 
-      // --- Сцена, камера, отрисовка ---
-      const scene3 = new THREE.Scene();
+    /* ================== ПОСТРОЙКА МИРОВ ================== */
+
+    // Нарисованный ночной город (работает без интернета к Google)
+    function buildPaintedWorld(THREE, scene3, theme) {
       scene3.background = new THREE.Color(theme.sky);
       scene3.fog = new THREE.Fog(theme.fog, 60, 330); // дымка вдалеке — уютно и быстрее рисовать
-
-      const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 900);
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-      renderer.setSize(innerWidth, innerHeight);
-      gameEl.appendChild(renderer.domElement);
-      window.addEventListener("resize", () => {
-        camera.aspect = innerWidth / innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(innerWidth, innerHeight);
-      });
 
       // Свет: ночное небо + "луна"
       scene3.add(new THREE.HemisphereLight(0x8899cc, 0x222833, 0.9));
@@ -779,20 +931,18 @@
       scene3.add(moon);
 
       // Звёзды: просто облако точек высоко над городом
-      {
-        const starPos = [];
-        for (let i = 0; i < 500; i++) {
-          const a = Math.random() * Math.PI * 2;
-          const r = 300 + Math.random() * 300;
-          const y = 80 + Math.random() * 350;
-          starPos.push(Math.cos(a) * r, y, Math.sin(a) * r);
-        }
-        const g = new THREE.BufferGeometry();
-        g.setAttribute("position", new THREE.Float32BufferAttribute(starPos, 3));
-        scene3.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xbfd4ff, size: 1.6, sizeAttenuation: false })));
+      const starPos = [];
+      for (let i = 0; i < 500; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 300 + Math.random() * 300;
+        const y = 80 + Math.random() * 350;
+        starPos.push(Math.cos(a) * r, y, Math.sin(a) * r);
       }
+      const sg = new THREE.BufferGeometry();
+      sg.setAttribute("position", new THREE.Float32BufferAttribute(starPos, 3));
+      scene3.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xbfd4ff, size: 1.6, sizeAttenuation: false })));
 
-      // --- Земля: рисуем текстуру одного "квартала с дорогами" и размножаем её ---
+      // Земля: рисуем текстуру одного "квартала с дорогами" и размножаем её
       {
         const c = document.createElement("canvas");
         c.width = c.height = 256;
@@ -843,8 +993,8 @@
       const winLow  = [windowTexture(5, 8),  windowTexture(5, 8),  windowTexture(6, 10)];
       const winHigh = [windowTexture(6, 22), windowTexture(6, 26), windowTexture(7, 30)];
 
-      // --- Дома: у каждого квартала 2×2 участка, на участке дом или скверик ---
-      const roofMat = new THREE.MeshLambertMaterial({ color: 0x14171c });
+      // Дома: у каждого квартала 2×2 участка, на участке дом или скверик
+      const roofMat  = new THREE.MeshLambertMaterial({ color: 0x14171c });
       const trunkMat = new THREE.MeshLambertMaterial({ color: 0x4a3626 });
       const leafMat  = new THREE.MeshLambertMaterial({ color: 0x1f4d2e });
       const parkMat  = new THREE.MeshLambertMaterial({ color: 0x22402a });
@@ -903,8 +1053,189 @@
         }
       }
 
+      return {
+        night: true,
+        roomSuffix: "",
+        ready: () => true,
+        update: () => {},
+        // Земля в нарисованном городе плоская
+        getGroundY: () => 0,
+        // Столкновения с кварталами: возвращаем true, если "стукнулись"
+        collide(pos) {
+          let hit = false;
+          const hw = BLOCK / 2 + 1.0;
+          const nearI = Math.round(pos.x / CELL), nearJ = Math.round(pos.z / CELL);
+          for (let bi = nearI - 1; bi <= nearI + 1; bi++) {
+            for (let bj = nearJ - 1; bj <= nearJ + 1; bj++) {
+              if (bi < -NB || bi > NB || bj < -NB || bj > NB) continue;
+              const dx = pos.x - bi * CELL, dz = pos.z - bj * CELL;
+              if (Math.abs(dx) < hw && Math.abs(dz) < hw) {
+                // Выталкиваем по той оси, где "заехали" меньше всего
+                const pushX = hw - Math.abs(dx), pushZ = hw - Math.abs(dz);
+                if (pushX < pushZ) pos.x += Math.sign(dx) * pushX;
+                else pos.z += Math.sign(dz) * pushZ;
+                hit = true;
+              }
+            }
+          }
+          // Не выпускаем за край карты
+          const lim = HALF - 3;
+          if (Math.abs(pos.x) > lim) { pos.x = Math.sign(pos.x) * lim; hit = true; }
+          if (Math.abs(pos.z) > lim) { pos.z = Math.sign(pos.z) * lim; hit = true; }
+          return hit;
+        },
+        spawn() {
+          // Появляемся на случайной улице, смотрим вдоль неё
+          const roadLine = (Math.floor(Math.random() * (NB * 2)) - NB + 0.5) * CELL;
+          return { x: roadLine, z: (Math.random() - 0.5) * CELL * NB, angle: Math.random() < 0.5 ? 0 : Math.PI };
+        },
+      };
+    }
+
+    // НАСТОЯЩИЙ город: фотореалистичные 3D-тайлы Google (как в Google Земля)
+    async function buildGoogleWorld(THREE, scene3, camera, renderer, city, apiKey, onFail) {
+      // Библиотека, которая умеет грузить 3D-тайлы, и распаковщик сжатых моделей
+      const { TilesRenderer } = await import("https://esm.sh/3d-tiles-renderer@0.4?deps=three@0.170.0");
+      const { GoogleCloudAuthPlugin, GLTFExtensionsPlugin, ReorientationPlugin } =
+        await import("https://esm.sh/3d-tiles-renderer@0.4/plugins?deps=three@0.170.0");
+      const { DRACOLoader } = await import("https://esm.sh/three@0.170.0/examples/jsm/loaders/DRACOLoader.js");
+
+      // Дневное небо и свет (тайлы Google уже "запечены" с дневным светом)
+      scene3.background = new THREE.Color(0x9cc7ef);
+      scene3.add(new THREE.HemisphereLight(0xffffff, 0xb0c4d8, 1.6)); // для наших машинок
+      const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+      sun.position.set(100, 200, 80);
+      scene3.add(sun);
+
+      const tiles = new TilesRenderer();
+      tiles.registerPlugin(new GoogleCloudAuthPlugin({ apiToken: apiKey, autoRefreshToken: true }));
+      const draco = new DRACOLoader();
+      draco.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.7/");
+      tiles.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader: draco }));
+
+      // Поворачиваем земной шар так, чтобы точка старта была в центре мира,
+      // а "вверх" совпадал с осью Y — тогда можно ездить как по плоскости
+      const D2R = Math.PI / 180;
+      tiles.registerPlugin(new ReorientationPlugin({
+        lat: city.drive[0] * D2R,
+        lon: city.drive[1] * D2R,
+      }));
+
+      // Качество: чем больше errorTarget, тем меньше деталей (и быстрее)
+      tiles.errorTarget = IS_TOUCH ? 24 : 12;
+      tiles.setCamera(camera);
+      tiles.setResolutionFromRenderer(camera, renderer);
+      scene3.add(tiles.group);
+
+      let anyTile = false;
+      tiles.addEventListener("load-model", (ev) => {
+        anyTile = true;
+        // Текстуры Google уже с тенями — делаем материал "без освещения":
+        // выглядит правильно и быстрее работает на телефоне
+        ev.scene.traverse((o) => {
+          if (o.material && o.material.map) {
+            const m = new THREE.MeshBasicMaterial({ map: o.material.map });
+            o.material.dispose && o.material.dispose();
+            o.material = m;
+          }
+        });
+      });
+
+      // Если за 25 секунд не пришёл ни один кусочек города — что-то не так
+      // (чаще всего неверный ключ или не включён Map Tiles API)
+      const failTimer = setTimeout(() => { if (!anyTile) onFail(); }, 25000);
+
+      // Луч вниз: ищем высоту земли/дороги под машиной
+      const ray = new THREE.Raycaster();
+      ray.firstHitOnly = true;
+      const DOWN = new THREE.Vector3(0, -1, 0);
+      let lastGround = null;
+
+      return {
+        night: false,
+        roomSuffix: "-g",   // своя комната мультиплеера, чтобы миры не путались
+        ready: () => lastGround !== null,
+        update() {
+          camera.updateMatrixWorld();
+          tiles.update();   // сама решает, какие кусочки города догрузить
+        },
+        getGroundY(x, z) {
+          const from = (lastGround === null ? 0 : lastGround) + 100;
+          ray.set(new THREE.Vector3(x, from, z), DOWN);
+          ray.far = 400;
+          const hits = ray.intersectObject(tiles.group, true);
+          if (hits.length) {
+            lastGround = hits[0].point.y;
+            clearTimeout(failTimer);
+          }
+          return lastGround;
+        },
+        collide(pos) {
+          // У настоящего города нет "физических" стен — просто не даём
+          // уехать слишком далеко от места старта
+          const d = Math.hypot(pos.x, pos.z);
+          if (d > REAL_LIMIT) {
+            pos.x *= REAL_LIMIT / d;
+            pos.z *= REAL_LIMIT / d;
+            return true;
+          }
+          return false;
+        },
+        spawn: () => ({ x: 0, z: 0, angle: Math.random() * Math.PI * 2 }),
+      };
+    }
+
+    /* ================== ОБЩАЯ ЧАСТЬ ИГРЫ ================== */
+
+    async function runGame(THREE, cityIndex, mode) {
+      const city = CITIES[cityIndex];
+
+      // --- Сцена, камера, отрисовка ---
+      const scene3 = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.5, 20000);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(innerWidth, innerHeight);
+      gameEl.insertBefore(renderer.domElement, gameEl.firstChild);
+      window.addEventListener("resize", () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      });
+
+      // --- Строим выбранный мир ---
+      // Если Google-город не загрузится, предложим запасной вариант
+      function googleFail() {
+        loadingEl.style.display = "flex";
+        loadingEl.innerHTML =
+          "Не получилось загрузить город Google 😕<br />" +
+          "<small>Проверь, что ключ верный и включён <b>Map Tiles API</b></small><br /><br />";
+        const retry = document.createElement("button");
+        retry.className = "modeBtn"; retry.id = "btnReal";
+        retry.textContent = "Попробовать ещё раз";
+        retry.onclick = () => location.reload();
+        const fb = document.createElement("button");
+        fb.className = "modeBtn"; fb.id = "btnPainted";
+        fb.textContent = "🎨 Поехали в нарисованном городе";
+        fb.onclick = () => { sessionStorage.setItem("gonki-auto", String(cityIndex)); location.reload(); };
+        loadingEl.append(retry, fb);
+      }
+
+      let world;
+      if (mode === "google") {
+        try {
+          world = await buildGoogleWorld(THREE, scene3, camera, renderer, city,
+                                         localStorage.getItem("gonki-gkey"), googleFail);
+          gCredit.style.display = "block";   // Google просит указывать источник данных
+        } catch (e) {
+          googleFail();
+          return;
+        }
+      } else {
+        world = buildPaintedWorld(THREE, scene3, city.theme);
+      }
+
       // --- Генератор 3D-машинки: кузов + кабина + колёса + фары ---
-      // steer — группа передних колёс (поворачиваются), wheels — все колёса (крутятся)
       function buildCar(colorHex) {
         const g = new THREE.Group();
         const bodyMat  = new THREE.MeshLambertMaterial({ color: colorHex });
@@ -979,10 +1310,9 @@
       // --- Наша машинка ---
       const car = buildCar(CAR_COLORS[myColor]);
       scene3.add(car);
-      // Появляемся на случайной улице, смотрим вдоль неё
-      const roadLine = (Math.floor(Math.random() * (NB * 2)) - NB + 0.5) * CELL;
-      const pos = { x: roadLine, z: (Math.random() - 0.5) * CELL * NB };
-      let angle = Math.random() < 0.5 ? 0 : Math.PI;
+      const sp = world.spawn();
+      const pos = { x: sp.x, y: 0, z: sp.z };
+      let angle = sp.angle;
       let speed = 0;
       let wheelSpin = 0;
 
@@ -1013,29 +1343,14 @@
         pos.x += Math.sin(angle) * speed * dt;
         pos.z += Math.cos(angle) * speed * dt;
 
-        // Столкновения с кварталами: выталкиваем машину обратно на улицу
-        const hw = BLOCK / 2 + 1.0;
-        const nearI = Math.round(pos.x / CELL), nearJ = Math.round(pos.z / CELL);
-        for (let bi = nearI - 1; bi <= nearI + 1; bi++) {
-          for (let bj = nearJ - 1; bj <= nearJ + 1; bj++) {
-            if (bi < -NB || bi > NB || bj < -NB || bj > NB) continue;
-            const dx = pos.x - bi * CELL, dz = pos.z - bj * CELL;
-            if (Math.abs(dx) < hw && Math.abs(dz) < hw) {
-              // Выталкиваем по той оси, где "заехали" меньше всего
-              const pushX = hw - Math.abs(dx), pushZ = hw - Math.abs(dz);
-              if (pushX < pushZ) pos.x += Math.sign(dx) * pushX;
-              else pos.z += Math.sign(dz) * pushZ;
-              speed *= 0.4;   // удар о бордюр гасит скорость
-            }
-          }
-        }
-        // Не выпускаем за край карты
-        const lim = HALF - 3;
-        if (Math.abs(pos.x) > lim) { pos.x = Math.sign(pos.x) * lim; speed *= 0.4; }
-        if (Math.abs(pos.z) > lim) { pos.z = Math.sign(pos.z) * lim; speed *= 0.4; }
+        if (world.collide(pos)) speed *= 0.4;   // удар о препятствие гасит скорость
+
+        // Держимся на высоте земли (в настоящем городе она неровная)
+        const gy = world.getGroundY(pos.x, pos.z);
+        if (gy !== null) pos.y += (gy - pos.y) * Math.min(1, dt * 8);
 
         // Переносим результат на 3D-модель
-        car.position.set(pos.x, 0, pos.z);
+        car.position.set(pos.x, pos.y, pos.z);
         car.rotation.y = angle;
         wheelSpin += speed * dt / 0.42;
         for (const wh of car.userData.wheels) wh.rotation.x = wheelSpin;
@@ -1044,25 +1359,25 @@
 
       // --- Камера едет за машиной ---
       const camTarget = new THREE.Vector3();
-      function updateCamera(dt) {
+      function updateCamera(dt, snap) {
         const back = 9.5, up = 4.6;
         const want = new THREE.Vector3(
           pos.x - Math.sin(angle) * back,
-          up,
+          pos.y + up,
           pos.z - Math.cos(angle) * back
         );
-        const k = 1 - Math.exp(-5 * dt);   // плавное "догоняние"
-        camera.position.lerp(want, k);
-        camTarget.set(pos.x + Math.sin(angle) * 4, 1.6, pos.z + Math.cos(angle) * 4);
+        if (snap) camera.position.copy(want);
+        else camera.position.lerp(want, 1 - Math.exp(-5 * dt));   // плавное "догоняние"
+        camTarget.set(pos.x + Math.sin(angle) * 4, pos.y + 1.6, pos.z + Math.cos(angle) * 4);
         camera.lookAt(camTarget);
       }
-      camera.position.set(pos.x - Math.sin(angle) * 9.5, 4.6, pos.z - Math.cos(angle) * 9.5);
+      updateCamera(0, true);
 
       /* --- МУЛЬТИПЛЕЕР ---
          trystero соединяет браузеры напрямую, сервер не нужен.
          Каждый ~0.1 сек отправляем всем: где мы, куда смотрим, скорость,
          цвет и имя. Получая то же от других — двигаем их машинки. */
-      const peers = new Map();   // peerId -> { car, target, name, lastSeen }
+      const peers = new Map();   // peerId -> { car, target, spin }
       let sendState = null;
 
       function updateOnlineHud() {
@@ -1073,30 +1388,30 @@
       (async () => {
         try {
           const { joinRoom } = await import("https://esm.sh/trystero@0.21/nostr");
-          const room = joinRoom({ appId: "ex13m-gonki-v1" }, "city-" + cityIndex);
+          const room = joinRoom({ appId: "ex13m-gonki-v1" }, "city-" + cityIndex + world.roomSuffix);
           const [send, onState] = room.makeAction("st");
           sendState = send;
 
           onState((d, peerId) => {
-            // Ожидаем массив: [x, z, угол, скорость, цвет, имя]
+            // Ожидаем массив: [x, z, угол, скорость, цвет, имя, высота]
             if (!Array.isArray(d) || d.length < 6) return;
             let p = peers.get(peerId);
             if (!p) {
               const colorIdx = Math.min(CAR_COLORS.length - 1, Math.max(0, d[4] | 0));
               const pcar = buildCar(CAR_COLORS[colorIdx]);
               pcar.add(nameSprite(String(d[5])));
-              pcar.position.set(d[0], 0, d[1]);
+              pcar.position.set(d[0], d[6] || 0, d[1]);
               scene3.add(pcar);
-              p = { car: pcar, target: { x: d[0], z: d[1], a: d[2], s: d[3] }, spin: 0 };
+              p = { car: pcar, target: null, spin: 0 };
               peers.set(peerId, p);
               updateOnlineHud();
             }
-            p.target = { x: d[0], z: d[1], a: d[2], s: d[3] };
+            p.target = { x: d[0], z: d[1], a: d[2], s: d[3], y: d[6] || 0 };
           });
 
           room.onPeerJoin(() => {
             // Новичку сразу говорим, где мы, чтобы он нас увидел без задержки
-            send([pos.x, pos.z, angle, speed, myColor, myName]);
+            send([+pos.x.toFixed(2), +pos.z.toFixed(2), +angle.toFixed(3), +speed.toFixed(1), myColor, myName, +pos.y.toFixed(2)]);
             updateOnlineHud();
           });
           room.onPeerLeave((peerId) => {
@@ -1115,13 +1430,15 @@
       function updatePeers(dt) {
         const k = 1 - Math.exp(-10 * dt);
         for (const p of peers.values()) {
+          if (!p.target) continue;
           const c = p.car;
           // Если машинка очень далеко от цели (телепорт) — просто переносим
-          if (Math.hypot(c.position.x - p.target.x, c.position.z - p.target.z) > 40) {
-            c.position.set(p.target.x, 0, p.target.z);
+          if (Math.hypot(c.position.x - p.target.x, c.position.z - p.target.z) > 60) {
+            c.position.set(p.target.x, p.target.y, p.target.z);
             c.rotation.y = p.target.a;
           } else {
             c.position.x += (p.target.x - c.position.x) * k;
+            c.position.y += (p.target.y - c.position.y) * k;
             c.position.z += (p.target.z - c.position.z) * k;
             let da = p.target.a - c.rotation.y;
             da = Math.atan2(Math.sin(da), Math.cos(da));
@@ -1133,22 +1450,35 @@
       }
 
       // --- Главный игровой цикл ---
-      loadingEl.style.display = "none";
       let prev = performance.now();
       let netTimer = 0;
+      let shown = false;   // спрятали ли экран загрузки
       function tick(now) {
         const dt = Math.min((now - prev) / 1000, 0.05);
         prev = now;
 
-        updateCar(dt);
-        updatePeers(dt);
-        updateCamera(dt);
+        world.update();
+
+        if (!shown && world.ready()) {
+          shown = true;
+          loadingEl.style.display = "none";
+          updateCamera(0, true);
+        }
+
+        if (shown) {
+          updateCar(dt);
+          updatePeers(dt);
+          updateCamera(dt, false);
+        } else {
+          // Пока мир грузится, тоже зовём getGroundY — так найдём землю
+          world.getGroundY(pos.x, pos.z);
+        }
 
         // Рассылаем своё положение ~10 раз в секунду
         netTimer += dt;
         if (sendState && netTimer > 0.1) {
           netTimer = 0;
-          sendState([+pos.x.toFixed(2), +pos.z.toFixed(2), +angle.toFixed(3), +speed.toFixed(1), myColor, myName]);
+          sendState([+pos.x.toFixed(2), +pos.z.toFixed(2), +angle.toFixed(3), +speed.toFixed(1), myColor, myName, +pos.y.toFixed(2)]);
         }
 
         hudSpeed.innerHTML = Math.round(Math.abs(speed) * 3.6) + " <small>км/ч</small>";
